@@ -1,21 +1,29 @@
-package main.java.br.com.pateandoapp.pateandobackend.model;
+package br.com.pateandoapp.pateandobackend.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Entity
+/**
+ * Classe que representa o Dogwalker (profissional que passeia com os pets).
+ * Está relacionada à entidade Usuario.
+ */
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Entity
+@Table(name = "dogwalkers")
 public class Dogwalker {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String areaAtuacao;
-    private String disponibilidade;
+    @OneToOne // Relacionamento 1:1
+    @JoinColumn(name = "usuario_id", referencedColumnName = "id")
+    private Usuario usuario; // Um Dogwalker é também um Usuario
 
-    // Ligação com usuário (perfil do dogwalker)
-    @OneToOne
-    @JoinColumn(name = "usuario_id")
-    private Usuario usuario;
+    @Column(nullable = false)
+    private String disponibilidade;
 }
