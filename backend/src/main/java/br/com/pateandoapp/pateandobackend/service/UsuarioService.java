@@ -10,21 +10,22 @@ import br.com.pateandoapp.pateandobackend.model.Usuario;
 import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 
 /**
- * Classe de serviço responsável pelas regras de negócio relacionadas a Usuários.
+ * Classe de serviço responsável pelas regras de negócio relacionadas a
+ * Usuários.
  */
 @Service
 public class UsuarioService {
-    
+
     @Autowired
     private UsuarioRepository usuarioRepository;
 
     // Criar Usuario
-    public Usuario createUser(Usuario usuario){
+    public Usuario createUser(Usuario usuario) {
         return usuarioRepository.save(usuario);
     }
 
     // Buscar todos os Usuarios
-    public List<Usuario> listUsers(){
+    public List<Usuario> listUsers() {
         return usuarioRepository.findAll();
     }
 
@@ -34,7 +35,7 @@ public class UsuarioService {
     }
 
     // Buscar usuário por email
-    public Optional<Usuario> findByEmail(String email){
+    public Optional<Usuario> findByEmail(String email) {
         return usuarioRepository.findByEmail(email);
     }
 
