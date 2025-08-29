@@ -1,17 +1,21 @@
-import { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import InputField from "../components/InputField";
+import SocialButton from "../components/SocialButton";
 import RadioButton from "../components/RadioButton";
 import RememberMe from "../components/RememberMe";
-import SocialButton from "../components/SocialButton";
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
+  const [selectedRole, setSelectedRole] = useState("cliente");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState("cliente");
+
+  const handleLogin = () => {
+    console.log({ selectedRole, email, password });
+  };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Entre aqui</Text>
 
       <RadioButton
@@ -26,10 +30,12 @@ export default function LoginScreen() {
       />
 
       <InputField
-              iconName="mail-outline"
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail} secureTextEntry={undefined}      />
+        iconName="mail-outline"
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        secureTextEntry={false} // <- obrigatório passar boolean
+      />
       <InputField
         iconName="lock-closed-outline"
         placeholder="Password"
@@ -40,7 +46,7 @@ export default function LoginScreen() {
 
       <RememberMe />
 
-      <TouchableOpacity style={styles.loginButton}>
+      <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
         <Text style={styles.loginText}>Login</Text>
       </TouchableOpacity>
 
@@ -51,22 +57,24 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.socialContainer}>
-  <SocialButton type="google" onPress={() => {}} />
-  <SocialButton type="facebook" onPress={() => {}} />
-  <SocialButton type="apple" onPress={() => {}} />
-</View>
-
+        <SocialButton type="google" onPress={() => {}} />
+        <SocialButton type="facebook" onPress={() => {}} />
+        <SocialButton type="apple" onPress={() => {}} />
+      </View>
 
       <Text style={styles.footer}>
-        Ainda não tem uma conta? <Text style={styles.signup}>Crie aqui</Text>
+        Ainda não tem uma conta?{" "}
+        <Text style={styles.signup} onPress={() => navigation.navigate("Register")}>
+          Crie aqui
+        </Text>
       </Text>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: "#FCEFE6",
     padding: 20,
     justifyContent: "center",
