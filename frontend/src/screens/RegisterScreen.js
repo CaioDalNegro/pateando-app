@@ -1,3 +1,5 @@
+// tela registro
+
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import InputField from "../components/InputField";
