@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from "react-native";
 import InputField from "../components/InputField";
 import SocialButton from "../components/SocialButton";
 import RadioButton from "../components/RadioButton";
 import RememberMe from "../components/RememberMe";
+
+import Logo from '../../assets/logo.png';
 
 export default function LoginScreen({ navigation }) {
   const [selectedRole, setSelectedRole] = useState("cliente");
@@ -12,10 +14,13 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = () => {
     console.log({ selectedRole, email, password });
+    // Navega para a tela InicialClient após um "login" simulado
+    navigation.navigate('InicialClient'); 
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Image source={Logo} style={styles.logo} />
       <Text style={styles.title}>Entre aqui</Text>
 
       <RadioButton
@@ -34,7 +39,7 @@ export default function LoginScreen({ navigation }) {
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
-        secureTextEntry={false} // <- obrigatório passar boolean
+        secureTextEntry={false}
       />
       <InputField
         iconName="lock-closed-outline"
@@ -78,6 +83,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FCEFE6",
     padding: 20,
     justifyContent: "center",
+  },
+  logo: {
+    width: 150,
+    height: 150,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   title: {
     fontSize: 26,
