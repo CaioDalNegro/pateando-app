@@ -27,12 +27,15 @@ public class Usuario {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false, unique = true)
+    private String telefone;
+
     @Column(nullable = false)
     private String senha;
 
     /**
      * Tipo do usuário: "CLIENTE" ou "DOGWALKER"
      */
-    @Column(nullable = false)
-    private String tipo;
+    //@Column(nullable = false)
+    //private String tipo;
 }

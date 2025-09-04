@@ -1,20 +1,45 @@
-// tela registro
-
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
 import InputField from "../components/InputField";
 import SocialButton from "../components/SocialButton";
+import api from "../services/api";
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleCreateAccount = () => {
-    // lógica para criar conta
-    console.log({ name, phone, email, password, confirmPassword });
+  const handleCreateAccount = async () => {
+    if (password !== confirmPassword) {
+      Alert.alert("Erro", "As senhas não coincidem!");
+      return;
+    }
+
+    try {
+      const response = await api.post("/usuarios", {
+        nome: name,
+        telefone: phone,
+        email: email,
+        senha: password,
+      });
+
+      Alert.alert("Sucesso", "Usuário criado com sucesso!");
+      console.log("Usuário criado:", response.data);
+
+      navigation.navigate("Login");
+
+    } catch (error) {
+      console.error(error);
+
+      // Mostra a mensagem do backend se existir
+      if (error.response && error.response.data) {
+        Alert.alert("Erro", error.response.data);
+      } else {
+        Alert.alert("Erro", "Não foi possível criar a conta.");
+      }
+    }
   };
 
   const handleSocialLogin = (type) => {
@@ -25,27 +50,27 @@ export default function RegisterScreen({ navigation }) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Crie sua conta</Text>
 
-     <InputField
-  iconName="person-outline"
-  placeholder="Seu nome"
-  value={name}
-  onChangeText={setName}
-  secureTextEntry={false} // adicionado
-/>
-<InputField
-  iconName="call-outline"
-  placeholder="Número de telefone"
-  value={phone}
-  onChangeText={setPhone}
-  secureTextEntry={false} // adicionado
-/>
-<InputField
-  iconName="mail-outline"
-  placeholder="Email"
-  value={email}
-  onChangeText={setEmail}
-  secureTextEntry={false} // adicionado
-/>
+      <InputField
+        iconName="person-outline"
+        placeholder="Seu nome"
+        value={name}
+        onChangeText={setName}
+        secureTextEntry={false}
+      />
+      <InputField
+        iconName="call-outline"
+        placeholder="Número de telefone"
+        value={phone}
+        onChangeText={setPhone}
+        secureTextEntry={false}
+      />
+      <InputField
+        iconName="mail-outline"
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        secureTextEntry={false}
+      />
       <InputField
         iconName="lock-closed-outline"
         placeholder="Digite sua senha"

@@ -9,10 +9,6 @@ import org.springframework.stereotype.Service;
 import br.com.pateandoapp.pateandobackend.model.Usuario;
 import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 
-/**
- * Classe de serviço responsável pelas regras de negócio relacionadas a
- * Usuários.
- */
 @Service
 public class UsuarioService {
 
@@ -21,6 +17,16 @@ public class UsuarioService {
 
     // Criar Usuario
     public Usuario createUser(Usuario usuario) {
+        // Verificar se email já existe
+        if (usuarioRepository.findByEmail(usuario.getEmail()).isPresent()) {
+            throw new RuntimeException("Email já cadastrado!");
+        }
+
+        // Verificar se telefone já existe
+        if (usuarioRepository.findByTelefone(usuario.getTelefone()).isPresent()) {
+            throw new RuntimeException("Telefone já cadastrado!");
+        }
+
         return usuarioRepository.save(usuario);
     }
 
