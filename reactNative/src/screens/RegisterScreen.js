@@ -33,7 +33,6 @@ export default function RegisterScreen({ navigation }) {
     } catch (error) {
       console.error(error);
 
-      // Mostra a mensagem do backend se existir
       if (error.response && error.response.data) {
         Alert.alert("Erro", error.response.data);
       } else {

@@ -14,8 +14,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = () => {
     console.log({ selectedRole, email, password });
-    // Navega para a tela InicialClient após um "login" simulado
-    navigation.navigate('InicialClient'); 
+    navigation.navigate('InicialClient');
   };
 
   return (
