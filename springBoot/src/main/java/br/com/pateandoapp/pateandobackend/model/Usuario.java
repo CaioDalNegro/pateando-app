@@ -36,6 +36,6 @@ public class Usuario {
     /**
      * Tipo do usuário: "CLIENTE" ou "DOGWALKER"
      */
-    //@Column(nullable = false)
-    //private String tipo;
+    @Column(nullable = false)
+    private String tipo;
 }

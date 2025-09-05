@@ -10,6 +10,7 @@ export default function RegisterScreen({ navigation }) {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("cliente");
 
   const handleCreateAccount = async () => {
     if (password !== confirmPassword) {
@@ -23,16 +24,15 @@ export default function RegisterScreen({ navigation }) {
         telefone: phone,
         email: email,
         senha: password,
+        tipoUsuario: role, // envia o tipo de usuário
       });
 
       Alert.alert("Sucesso", "Usuário criado com sucesso!");
       console.log("Usuário criado:", response.data);
 
       navigation.navigate("Login");
-
     } catch (error) {
       console.error(error);
-
       if (error.response && error.response.data) {
         Alert.alert("Erro", error.response.data);
       } else {
@@ -54,36 +54,52 @@ export default function RegisterScreen({ navigation }) {
         placeholder="Seu nome"
         value={name}
         onChangeText={setName}
-        secureTextEntry={false}
       />
       <InputField
         iconName="call-outline"
         placeholder="Número de telefone"
         value={phone}
         onChangeText={setPhone}
-        secureTextEntry={false}
       />
       <InputField
         iconName="mail-outline"
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
-        secureTextEntry={false}
       />
       <InputField
         iconName="lock-closed-outline"
         placeholder="Digite sua senha"
         value={password}
         onChangeText={setPassword}
-        secureTextEntry={true}
+        secureTextEntry
       />
       <InputField
         iconName="lock-closed-outline"
         placeholder="Digite sua senha novamente"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
-        secureTextEntry={true}
+        secureTextEntry
       />
+
+      {/* 🔽 InputField custom para tipo de usuário */}
+      <View style={styles.roleContainer}>
+        <Text style={styles.label}>Tipo de usuário:</Text>
+        <View style={styles.roleButtons}>
+          <TouchableOpacity
+            style={[styles.roleButton, role === "cliente" && styles.roleButtonActive]}
+            onPress={() => setRole("cliente")}
+          >
+            <Text style={[styles.roleText, role === "cliente" && styles.roleTextActive]}>Cliente</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleButton, role === "dogwalker" && styles.roleButtonActive]}
+            onPress={() => setRole("dogwalker")}
+          >
+            <Text style={[styles.roleText, role === "dogwalker" && styles.roleTextActive]}>Dogwalker</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <TouchableOpacity style={styles.createButton} onPress={handleCreateAccount}>
         <Text style={styles.createText}>Criar</Text>
@@ -122,6 +138,36 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
     color: "#222",
+  },
+  roleContainer: {
+    marginVertical: 10,
+  },
+  label: {
+    fontSize: 14,
+    color: "#333",
+    marginBottom: 5,
+  },
+  roleButtons: {
+    flexDirection: "row",
+    backgroundColor: "#f2f2f2",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  roleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  roleButtonActive: {
+    backgroundColor: "#FF7A2D",
+  },
+  roleText: {
+    color: "#333",
+    fontWeight: "bold",
+  },
+  roleTextActive: {
+    color: "#fff",
   },
   createButton: {
     backgroundColor: "#FF7A2D",
