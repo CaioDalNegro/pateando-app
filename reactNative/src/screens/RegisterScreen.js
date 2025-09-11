@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, SafeAreaView, Platform } from "react-native";
+import { useState } from "react";
+import { Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import InputField from "../components/InputField";
 import SocialButton from "../components/SocialButton";
 import api from "../services/api";
@@ -54,20 +54,17 @@ export default function RegisterScreen({ navigation }) {
           iconName="person-outline"
           placeholder="Seu nome"
           value={name}
-          onChangeText={setName}
-        />
+          onChangeText={setName} secureTextEntry={undefined}        />
         <InputField
           iconName="call-outline"
           placeholder="Número de telefone"
           value={phone}
-          onChangeText={setPhone}
-        />
+          onChangeText={setPhone} secureTextEntry={undefined}        />
         <InputField
           iconName="mail-outline"
           placeholder="Email"
           value={email}
-          onChangeText={setEmail}
-        />
+          onChangeText={setEmail} secureTextEntry={undefined}        />
         <InputField
           iconName="lock-closed-outline"
           placeholder="Digite sua senha"

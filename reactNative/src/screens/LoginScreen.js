@@ -5,7 +5,7 @@ import SocialButton from "../components/SocialButton";
 import RadioButton from "../components/RadioButton";
 import RememberMe from "../components/RememberMe";
 
-import Logo from '../../assets/logo.png';
+// import Logo from '../../assets/logo.png'; 
 
 export default function LoginScreen({ navigation }) {
   const [selectedRole, setSelectedRole] = useState("cliente");
@@ -19,7 +19,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={Logo} style={styles.logo} />
+      {/* <Image source={Logo} style={styles.logo} /> */}
       <Text style={styles.title}>Entre aqui</Text>
 
       <RadioButton
