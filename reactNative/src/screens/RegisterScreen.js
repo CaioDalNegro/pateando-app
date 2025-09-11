@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, SafeAreaView, Platform } from "react-native";
 import InputField from "../components/InputField";
 import SocialButton from "../components/SocialButton";
 import api from "../services/api";
@@ -46,90 +46,95 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Crie sua conta</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Text style={styles.title}>Crie sua conta</Text>
 
-      <InputField
-        iconName="person-outline"
-        placeholder="Seu nome"
-        value={name}
-        onChangeText={setName}
-      />
-      <InputField
-        iconName="call-outline"
-        placeholder="Número de telefone"
-        value={phone}
-        onChangeText={setPhone}
-      />
-      <InputField
-        iconName="mail-outline"
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <InputField
-        iconName="lock-closed-outline"
-        placeholder="Digite sua senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <InputField
-        iconName="lock-closed-outline"
-        placeholder="Digite sua senha novamente"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-      />
+        <InputField
+          iconName="person-outline"
+          placeholder="Seu nome"
+          value={name}
+          onChangeText={setName}
+        />
+        <InputField
+          iconName="call-outline"
+          placeholder="Número de telefone"
+          value={phone}
+          onChangeText={setPhone}
+        />
+        <InputField
+          iconName="mail-outline"
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <InputField
+          iconName="lock-closed-outline"
+          placeholder="Digite sua senha"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <InputField
+          iconName="lock-closed-outline"
+          placeholder="Digite sua senha novamente"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
 
-      {/* 🔽 InputField custom para tipo de usuário */}
-      <View style={styles.roleContainer}>
-        <Text style={styles.label}>Tipo de usuário:</Text>
-        <View style={styles.roleButtons}>
+        <Text style={styles.userTypeTitle}>Tipo de usuário:</Text>
+        <View style={styles.userTypeContainer}>
           <TouchableOpacity
-            style={[styles.roleButton, role === "cliente" && styles.roleButtonActive]}
-            onPress={() => setRole("cliente")}
+            style={[styles.userTypeButton, role === 'cliente' && styles.userTypeButtonActive]}
+            onPress={() => setRole('cliente')}
           >
-            <Text style={[styles.roleText, role === "cliente" && styles.roleTextActive]}>Cliente</Text>
+            <Text style={[styles.userTypeButtonText, role === 'cliente' && styles.userTypeButtonTextActive]}>Cliente</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.roleButton, role === "dogwalker" && styles.roleButtonActive]}
-            onPress={() => setRole("dogwalker")}
+            style={[styles.userTypeButton, role === 'dogwalker' && styles.userTypeButtonActive]}
+            onPress={() => setRole('dogwalker')}
           >
-            <Text style={[styles.roleText, role === "dogwalker" && styles.roleTextActive]}>Dogwalker</Text>
+            <Text style={[styles.userTypeButtonText, role === 'dogwalker' && styles.userTypeButtonTextActive]}>Dogwalker</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      <TouchableOpacity style={styles.createButton} onPress={handleCreateAccount}>
-        <Text style={styles.createText}>Criar</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.createButton} onPress={handleCreateAccount}>
+          <Text style={styles.createText}>Criar</Text>
+        </TouchableOpacity>
 
-      <View style={styles.divider}>
-        <View style={styles.line} />
-        <Text style={styles.dividerText}>Ou entre com</Text>
-        <View style={styles.line} />
-      </View>
+        <View style={styles.divider}>
+          <View style={styles.line} />
+          <Text style={styles.dividerText}>Ou entre com</Text>
+          <View style={styles.line} />
+        </View>
 
-      <View style={styles.socialContainer}>
-        <SocialButton type="google" onPress={() => handleSocialLogin("google")} />
-        <SocialButton type="facebook" onPress={() => handleSocialLogin("facebook")} />
-        <SocialButton type="apple" onPress={() => handleSocialLogin("apple")} />
-      </View>
+        <View style={styles.socialContainer}>
+          <SocialButton type="google" onPress={() => handleSocialLogin("google")} />
+          <SocialButton type="facebook" onPress={() => handleSocialLogin("facebook")} />
+          <SocialButton type="apple" onPress={() => handleSocialLogin("apple")} />
+        </View>
 
-      <Text style={styles.footer}>
-        Já tem uma conta?{" "}
-        <Text style={styles.signin} onPress={() => navigation.navigate("Login")}>
-          Entre aqui
+        <Text style={styles.footer}>
+          Já tem uma conta?{" "}
+          <Text style={styles.signin} onPress={() => navigation.navigate("Login")}>
+            Entre aqui
+          </Text>
         </Text>
-      </Text>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FCEFE6', // Cor de fundo do app
+    paddingTop: Platform.OS === 'android' ? 25 : 0, // Adiciona padding no topo para Android
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
     justifyContent: "center",
   },
   title: {
@@ -139,35 +144,35 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#222",
   },
-  roleContainer: {
-    marginVertical: 10,
+  userTypeTitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 10,
   },
-  label: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 5,
+  userTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  roleButtons: {
-    flexDirection: "row",
-    backgroundColor: "#f2f2f2",
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  roleButton: {
+  userTypeButton: {
     flex: 1,
+    backgroundColor: '#fff',
     paddingVertical: 12,
-    justifyContent: "center",
-    alignItems: "center",
+    borderRadius: 10,
+    alignItems: 'center',
+    marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: '#FF7A2D',
   },
-  roleButtonActive: {
-    backgroundColor: "#FF7A2D",
+  userTypeButtonActive: {
+    backgroundColor: '#FF7A2D',
   },
-  roleText: {
-    color: "#333",
-    fontWeight: "bold",
+  userTypeButtonText: {
+    color: '#FF7A2D',
+    fontWeight: 'bold',
   },
-  roleTextActive: {
-    color: "#fff",
+  userTypeButtonTextActive: {
+    color: '#fff',
   },
   createButton: {
     backgroundColor: "#FF7A2D",
