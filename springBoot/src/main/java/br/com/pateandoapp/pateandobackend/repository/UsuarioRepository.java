@@ -12,4 +12,6 @@ import br.com.pateandoapp.pateandobackend.model.Usuario;
 public interface UsuarioRepository extends JpaRepository<Usuario, Long>{
     Optional<Usuario> findByEmail(String email);
     Optional<Usuario> findByTelefone(String telefone);
+
+    boolean existsByEmail(String email);
 }

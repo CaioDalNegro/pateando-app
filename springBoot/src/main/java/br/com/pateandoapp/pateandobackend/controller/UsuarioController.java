@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.pateandoapp.pateandobackend.model.Usuario;
+import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 import br.com.pateandoapp.pateandobackend.service.UsuarioService;
 
 /**
@@ -20,16 +22,23 @@ import br.com.pateandoapp.pateandobackend.service.UsuarioService;
  */
 @RestController
 @RequestMapping("/usuarios")
+@CrossOrigin(origins = "*") // habilita CORS para frontend React Native
 public class UsuarioController {
 
     @Autowired
     private UsuarioService usuarioService;
 
+    @Autowired
+    private UsuarioRepository usuariorepository;
+
     // POST - Criar novo usuário
     @PostMapping
-    public ResponseEntity<Usuario> createUser(@RequestBody Usuario usuario) {
-        Usuario novoUsuario = usuarioService.createUser(usuario);
-        return ResponseEntity.ok(novoUsuario);
+    public ResponseEntity<?> createUser(@RequestBody Usuario usuario) {
+        if (usuariorepository.existsByEmail(usuario.getEmail())) {
+            return ResponseEntity.badRequest().body("Email já cadastrado!");
+        }
+        Usuario salvo = usuariorepository.save(usuario);
+        return ResponseEntity.ok(salvo);
     }
 
     // GET - Listar todos os usuários

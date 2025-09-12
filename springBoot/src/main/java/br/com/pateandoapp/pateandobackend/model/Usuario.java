@@ -1,5 +1,7 @@
 package br.com.pateandoapp.pateandobackend.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,6 +38,7 @@ public class Usuario {
     /**
      * Tipo do usuário: "CLIENTE" ou "DOGWALKER"
      */
+    @JsonProperty("tipoUsuario")
     @Column(nullable = false)
     private String tipo;
 }
