@@ -1,30 +1,61 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function MyPetsScreen({ navigation }) {
   const [pets, setPets] = useState([]);
 
   useEffect(() => {
-    const loadPets = async () => {
-      try {
-        const storedPets = await AsyncStorage.getItem('pets');
-        if (storedPets) {
-          setPets(JSON.parse(storedPets));
-        }
-      } catch (error) {
-        console.log('Erro ao carregar pets:', error);
-      }
-    };
     loadPets();
   }, []);
 
-  const renderPet = ({ item }) => (
+  const loadPets = async () => {
+    try {
+      const storedPets = await AsyncStorage.getItem('pets');
+      if (storedPets) {
+        setPets(JSON.parse(storedPets));
+      }
+    } catch (error) {
+      console.log('Erro ao carregar pets:', error);
+    }
+  };
+
+  const removePet = async (index) => {
+    Alert.alert(
+      "Remover Pet",
+      "Tem certeza que deseja remover este pet?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Remover", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              const updatedPets = pets.filter((_, i) => i !== index);
+              await AsyncStorage.setItem('pets', JSON.stringify(updatedPets));
+              setPets(updatedPets);
+            } catch (error) {
+              console.log("Erro ao remover pet:", error);
+            }
+          } 
+        }
+      ]
+    );
+  };
+
+  const renderPet = ({ item, index }) => (
     <View style={styles.petCard}>
       <Text style={styles.petName}>{item.name}</Text>
       <Text style={styles.petInfo}>Idade: {item.age}</Text>
       <Text style={styles.petInfo}>Peso: {item.weight}</Text>
       {item.info ? <Text style={styles.petInfo}>Info: {item.info}</Text> : null}
+
+      <TouchableOpacity 
+        style={styles.removeButton} 
+        onPress={() => removePet(index)}
+      >
+        <Text style={styles.removeButtonText}>Remover</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -43,7 +74,19 @@ export default function MyPetsScreen({ navigation }) {
         />
       )}
 
-      <TouchableOpacity style={styles.buttonBack} onPress={() => navigation.navigate('Perfil')}>
+      {/* Botão para adicionar novo pet */}
+      <TouchableOpacity 
+        style={styles.addButton} 
+        onPress={() => navigation.navigate('RegisterPetClient')}
+      >
+        <Text style={styles.addButtonText}>+ Adicionar Novo Pet</Text>
+      </TouchableOpacity>
+
+      {/* Botão de voltar */}
+      <TouchableOpacity 
+        style={styles.buttonBack} 
+        onPress={() => navigation.navigate('InicialClient')}
+      >
         <Text style={styles.buttonBackText}>Voltar para Perfil</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -91,8 +134,32 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 4,
   },
-  buttonBack: {
+  removeButton: {
+    marginTop: 10,
     backgroundColor: '#FF7A2D',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  removeButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  addButton: {
+    backgroundColor: '#FF7A2D',
+    padding: 15,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  addButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  buttonBack: {
+    backgroundColor: '#333',
     padding: 15,
     borderRadius: 12,
     width: '100%',
