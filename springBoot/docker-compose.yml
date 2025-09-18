@@ -1,10 +1,10 @@
 services:
   db:
     image: postgres:15
-    container_name: postgres_sistema
+    container_name: container_pateando
     environment:
-      POSTGRES_USER: usuario
-      POSTGRES_PASSWORD: senha123
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pateando_db
     ports:
       - "5432:5432"

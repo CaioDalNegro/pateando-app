@@ -15,21 +15,34 @@ export default function RegisterPetClientScreen({ navigation }) {
     }
 
     try {
-      const storedPets = await AsyncStorage.getItem('pets');
-      let pets = storedPets ? JSON.parse(storedPets) : [];
-      pets.push({
-        name: petName,
-        age: petAge,
-        weight: petWeight,
-        info: petInfo
-      });
-      await AsyncStorage.setItem('pets', JSON.stringify(pets));
+      // Aqui você pega o id do usuário logado, pode salvar no AsyncStorage ou Context
+      const usuarioId = await AsyncStorage.getItem('usuarioId'); 
 
-      Alert.alert('Sucesso', 'Pet registrado!');
-      navigation.navigate('MyPets');
+      const response = await fetch(`http://localhost:8080/pets/create/${usuarioId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nome: petName,
+          idade: parseInt(petAge),
+          raca: 'Não Informada', // ou adicionar campo de raça no formulário
+          observacoes: petInfo,
+          necessidadesEspeciais: petWeight // aqui você pode criar outro campo se preferir
+        })
+      });
+
+      if (response.ok) {
+        const petCadastrado = await response.json();
+        Alert.alert('Sucesso', `Pet ${petCadastrado.nome} registrado!`);
+        navigation.navigate('MyPets');
+      } else {
+        Alert.alert('Erro', 'Não foi possível salvar o pet.');
+      }
+
     } catch (error) {
       console.log(error);
-      Alert.alert('Erro', 'Não foi possível salvar o pet.');
+      Alert.alert('Erro', 'Ocorreu um erro ao conectar com o servidor.');
     }
   };
 
