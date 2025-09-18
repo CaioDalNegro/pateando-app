@@ -4,6 +4,7 @@ import InputField from "../components/InputField";
 import SocialButton from "../components/SocialButton";
 import RadioButton from "../components/RadioButton";
 import RememberMe from "../components/RememberMe";
+import api from "../services/api";
 
 // import Logo from '../../assets/logo.png'; 
 
@@ -12,10 +13,28 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    console.log({ selectedRole, email, password });
-    navigation.navigate('InicialClient');
-  };
+
+
+const handleLogin = async () => {
+  try {
+    const res = await api.post("/usuarios/login", {
+      email,
+      senha: password,
+    });
+    console.log("Login OK:", res.data);
+
+    // redireciona para a tela inicial
+    if (selectedRole === "cliente") {
+      navigation.navigate("InicialClient");
+    } else {
+      navigation.navigate("InicialDogWalker");
+    }
+  } catch (err) {
+    console.log("Erro no login:", err.response?.data || err.message);
+    alert("Email ou senha inválidos!");
+  }
+};
+
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

@@ -49,4 +49,8 @@ public class UsuarioService {
     public void deleteUser(Long id) {
         usuarioRepository.deleteById(id);
     }
+
+    public Optional<Usuario> login(String email, String senha) {
+        return usuarioRepository.findByEmailAndSenha(email, senha);
+    }
 }

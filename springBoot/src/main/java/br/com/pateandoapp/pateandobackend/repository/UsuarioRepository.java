@@ -9,9 +9,13 @@ import br.com.pateandoapp.pateandobackend.model.Usuario;
 /**
  * Repositório da entidade Usuario.
  */
-public interface UsuarioRepository extends JpaRepository<Usuario, Long>{
+public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByEmail(String email);
     Optional<Usuario> findByTelefone(String telefone);
 
     boolean existsByEmail(String email);
+
+    // novo método para login
+    Optional<Usuario> findByEmailAndSenha(String email, String senha);
 }
+

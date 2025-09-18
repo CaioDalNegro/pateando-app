@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import InputField from "../components/InputField";
 import SocialButton from "../components/SocialButton";
 import api from "../services/api";

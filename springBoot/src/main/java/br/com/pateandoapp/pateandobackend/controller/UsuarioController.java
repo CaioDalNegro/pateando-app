@@ -1,6 +1,8 @@
 package br.com.pateandoapp.pateandobackend.controller;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -61,5 +63,19 @@ public class UsuarioController {
         usuarioService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
-    
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> user) {
+        String email = user.get("email");
+        String senha = user.get("senha");
+
+        Optional<Usuario> usuario = usuarioService.login(email, senha);
+
+        if (usuario.isPresent()) {
+            return ResponseEntity.ok(usuario.get()); // retorna ResponseEntity<Usuario>
+        } else {
+            return ResponseEntity.status(401).body("Email ou senha inválidos!"); // retorna ResponseEntity<String>
+        }
+    }
+
 }
