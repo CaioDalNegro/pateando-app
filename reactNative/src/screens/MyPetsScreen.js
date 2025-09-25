@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, SafeAreaView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function MyPetsScreen({ navigation }) {
   const [pets, setPets] = useState([]);
@@ -26,9 +27,9 @@ export default function MyPetsScreen({ navigation }) {
       "Tem certeza que deseja remover este pet?",
       [
         { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Remover", 
-          style: "destructive", 
+        {
+          text: "Remover",
+          style: "destructive",
           onPress: async () => {
             try {
               const updatedPets = pets.filter((_, i) => i !== index);
@@ -37,7 +38,7 @@ export default function MyPetsScreen({ navigation }) {
             } catch (error) {
               console.log("Erro ao remover pet:", error);
             }
-          } 
+          }
         }
       ]
     );
@@ -49,9 +50,8 @@ export default function MyPetsScreen({ navigation }) {
       <Text style={styles.petInfo}>Idade: {item.age}</Text>
       <Text style={styles.petInfo}>Peso: {item.weight}</Text>
       {item.info ? <Text style={styles.petInfo}>Info: {item.info}</Text> : null}
-
-      <TouchableOpacity 
-        style={styles.removeButton} 
+      <TouchableOpacity
+        style={styles.removeButton}
         onPress={() => removePet(index)}
       >
         <Text style={styles.removeButtonText}>Remover</Text>
@@ -60,59 +60,64 @@ export default function MyPetsScreen({ navigation }) {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Meus Pets</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#FF7A2D" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Meus Pets</Text>
+      </View>
 
-      {pets.length === 0 ? (
-        <Text style={styles.noPets}>Você ainda não tem pets cadastrados.</Text>
-      ) : (
-        <FlatList
-          data={pets}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={renderPet}
-          scrollEnabled={false} // já está dentro do ScrollView
-        />
-      )}
+      <FlatList
+        data={pets}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={renderPet}
+        ListEmptyComponent={() => (
+          <Text style={styles.noPets}>Você ainda não tem pets cadastrados.</Text>
+        )}
+        contentContainerStyle={styles.listContainer}
+      />
 
-      {/* Botão para adicionar novo pet */}
-      <TouchableOpacity 
-        style={styles.addButton} 
+      <TouchableOpacity
+        style={styles.addButton}
         onPress={() => navigation.navigate('RegisterPetClient')}
       >
         <Text style={styles.addButtonText}>+ Adicionar Novo Pet</Text>
       </TouchableOpacity>
-
-      {/* Botão de voltar */}
-      <TouchableOpacity 
-        style={styles.buttonBack} 
-        onPress={() => navigation.navigate('InicialClient')}
-      >
-        <Text style={styles.buttonBackText}>Voltar para Perfil</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
+  safeArea: {
+    flex: 1,
     backgroundColor: '#FCEFE6',
+    paddingTop: Platform.OS === 'android' ? 25 : 0,
+  },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    flexGrow: 1,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20,
     color: '#FF7A2D',
+    marginLeft: 20,
+    flex: 1,
+  },
+  listContainer: {
+    paddingHorizontal: 20,
+    flexGrow: 1,
   },
   noPets: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 20,
+    textAlign: 'center',
+    marginTop: 50,
   },
   petCard: {
-    width: '100%',
     backgroundColor: '#FFEBD0',
     borderRadius: 12,
     padding: 15,
@@ -149,25 +154,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF7A2D',
     padding: 15,
     borderRadius: 12,
-    width: '100%',
+    width: '90%',
+    alignSelf: 'center',
     alignItems: 'center',
-    marginTop: 10,
-  },
-  addButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  buttonBack: {
-    backgroundColor: '#333',
-    padding: 15,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 10,
     marginBottom: 30,
   },
-  buttonBackText: {
+  addButtonText: {
     color: '#FFF',
     fontWeight: 'bold',
     fontSize: 16,
