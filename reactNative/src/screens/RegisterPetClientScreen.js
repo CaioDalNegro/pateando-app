@@ -1,172 +1,82 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Image, ScrollView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// src/screens/RegisterPetClientScreen.js
+import React, { useState, useContext } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, ScrollView, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
+import { AuthContext } from '../context/AuthContext'; // NOVO
+import api from '../services/api'; // NOVO
+import { COLORS } from '../theme/colors'; // NOVO
 
 export default function RegisterPetClientScreen({ navigation }) {
-  const [petName, setPetName] = useState('');
-  const [petAge, setPetAge] = useState('');
-  const [petWeight, setPetWeight] = useState('');
-  const [petInfo, setPetInfo] = useState('');
+  const { user } = useContext(AuthContext); // NOVO
+  const [nome, setNome] = useState('');
+  const [idade, setIdade] = useState('');
+  const [peso, setPeso] = useState('');
+  const [observacoes, setObservacoes] = useState('');
 
+  // NOVO: Estados de loading e erro
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // ALTERADO: Função de salvar agora é mais robusta
   const savePet = async () => {
-    if (!petName || !petAge || !petWeight) {
-      Alert.alert('Erro', 'Preencha todos os campos obrigatórios!');
+    if (!nome || !idade || !peso) {
+      Alert.alert('Erro', 'Nome, idade e peso são obrigatórios!');
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
+    const petData = {
+      nome,
+      idade: parseInt(idade),
+      peso: parseFloat(peso),
+      observacoes,
+      // O ID do usuário será associado no backend através do token de autenticação
+    };
+
     try {
-      // Aqui você pega o id do usuário logado, pode salvar no AsyncStorage ou Context
-      const usuarioId = await AsyncStorage.getItem('usuarioId'); 
+      // ALTERADO: Usando o api.post, que já envia o token do usuário
+      const response = await api.post(`/pets/create/${user.id}`, petData); // Ajuste a rota
+      
+      Alert.alert('Sucesso', `Pet ${response.data.nome} registrado!`);
+      navigation.goBack(); // ALTERADO: Volta para a tela anterior (MyPetsScreen), que irá auto-atualizar.
 
-      const response = await fetch(`http://localhost:8080/pets/create/${usuarioId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          nome: petName,
-          idade: parseInt(petAge),
-          raca: 'Não Informada', // ou adicionar campo de raça no formulário
-          observacoes: petInfo,
-          necessidadesEspeciais: petWeight // aqui você pode criar outro campo se preferir
-        })
-      });
-
-      if (response.ok) {
-        const petCadastrado = await response.json();
-        Alert.alert('Sucesso', `Pet ${petCadastrado.nome} registrado!`);
-        navigation.navigate('MyPets');
-      } else {
-        Alert.alert('Erro', 'Não foi possível salvar o pet.');
-      }
-
-    } catch (error) {
-      console.log(error);
-      Alert.alert('Erro', 'Ocorreu um erro ao conectar com o servidor.');
+    } catch (err) {
+      console.error('Erro ao salvar o pet:', err.response?.data || err);
+      setError('Não foi possível salvar o pet. Tente novamente.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Foto do Pet */}
-      <Image
-        // source={require('../assets/dog_placeholder.png')}
-        style={styles.petImage}
-      />
-      <Text style={styles.petTitle}>{petName || 'Nome do Pet'}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Cadastrar Novo Pet</Text>
+        
+        {/* ... Campos de formulário ... */}
+        <TextInput style={styles.input} placeholder="Nome do Pet" value={nome} onChangeText={setNome} />
+        <TextInput style={styles.input} placeholder="Idade (anos)" value={idade} onChangeText={setIdade} keyboardType="numeric" />
+        <TextInput style={styles.input} placeholder="Peso (kg)" value={peso} onChangeText={setPeso} keyboardType="numeric" />
+        <TextInput style={[styles.input, { height: 100 }]} placeholder="Observações (opcional)" value={observacoes} onChangeText={setObservacoes} multiline />
 
-      {/* Cartão: Nome */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Nome do Pet</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Digite o nome do seu pet"
-          value={petName}
-          onChangeText={setPetName}
-        />
-      </View>
-
-      {/* Cartão: Idade */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Qual a idade do seu cachorro?</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: 3 anos"
-          value={petAge}
-          onChangeText={setPetAge}
-          keyboardType="numeric"
-        />
-      </View>
-
-      {/* Cartão: Peso */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Qual o peso do seu cachorro?</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: 12 kg"
-          value={petWeight}
-          onChangeText={setPetWeight}
-          keyboardType="numeric"
-        />
-      </View>
-
-      {/* Cartão: Informações adicionais */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Informações adicionais</Text>
-        <TextInput
-          style={[styles.input, { height: 100 }]}
-          placeholder="Ex: meu pet gosta de passear..."
-          value={petInfo}
-          onChangeText={setPetInfo}
-          multiline
-        />
-      </View>
-
-      <TouchableOpacity style={styles.button} onPress={savePet}>
-        <Text style={styles.buttonText}>Salvar Pet</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {error && <Text style={styles.errorText}>{error}</Text>}
+        
+        <TouchableOpacity style={styles.button} onPress={savePet} disabled={isLoading}>
+          {isLoading ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.buttonText}>Salvar Pet</Text>}
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+// ALTERADO: Usando cores do tema
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    backgroundColor: '#FCEFE6',
-    alignItems: 'center',
-  },
-  petImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 10,
-    backgroundColor: '#FFDAB3',
-  },
-  petTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF7A2D',
-    marginBottom: 20,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#FFEBD0', // bege claro
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  cardLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF7A2D',
-    marginBottom: 8,
-  },
-  input: {
-    width: '100%',
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#FF7A2D',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#FFF',
-  },
-  button: {
-    backgroundColor: '#FF7A2D',
-    padding: 15,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  buttonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  safeArea: { flex: 1, backgroundColor: COLORS.background, paddingTop: Platform.OS === 'android' ? 25 : 0 },
+  container: { padding: 20, backgroundColor: COLORS.background, flexGrow: 1 },
+  title: { fontSize: 24, fontWeight: 'bold', color: COLORS.primary, marginBottom: 20, textAlign: 'center' },
+  input: { width: '100%', height: 50, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 8, paddingHorizontal: 10, backgroundColor: COLORS.white, marginBottom: 15, },
+  button: { backgroundColor: COLORS.primary, padding: 15, borderRadius: 12, width: '100%', alignItems: 'center', marginTop: 10 },
+  buttonText: { color: COLORS.white, fontWeight: 'bold', fontSize: 16, },
+  errorText: { color: COLORS.error, textAlign: 'center', marginBottom: 10, fontSize: 14, },
 });
