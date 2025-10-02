@@ -14,9 +14,4 @@ import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 @RequestMapping("/pets")
 public class PetController {
     
-    @Autowired
-    private PetRepository petRepository;
-
-    @Autowired
-    private UsuarioRepository usuarioRepository;
 }

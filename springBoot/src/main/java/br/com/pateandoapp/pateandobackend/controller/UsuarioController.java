@@ -4,43 +4,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import br.com.pateandoapp.pateandobackend.model.Usuario;
-import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 import br.com.pateandoapp.pateandobackend.service.UsuarioService;
 
-/**
- * Controller responsável pelos endpoints de Usuário.
- */
 @RestController
 @RequestMapping("/usuarios")
-@CrossOrigin(origins = "*") // habilita CORS para frontend React Native
+@CrossOrigin(origins = "*")
 public class UsuarioController {
 
-    @Autowired
-    private UsuarioService usuarioService;
+    private final UsuarioService usuarioService;
 
-    @Autowired
-    private UsuarioRepository usuariorepository;
+    // Injeção via construtor (boa prática)
+    public UsuarioController(UsuarioService usuarioService) {
+        this.usuarioService = usuarioService;
+    }
 
     // POST - Criar novo usuário
     @PostMapping
     public ResponseEntity<?> createUser(@RequestBody Usuario usuario) {
-        if (usuariorepository.existsByEmail(usuario.getEmail())) {
-            return ResponseEntity.badRequest().body("Email já cadastrado!");
+        try {
+            Usuario salvo = usuarioService.createUser(usuario);
+            return ResponseEntity.ok(salvo);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
-        Usuario salvo = usuariorepository.save(usuario);
-        return ResponseEntity.ok(salvo);
     }
 
     // GET - Listar todos os usuários
@@ -64,6 +54,7 @@ public class UsuarioController {
         return ResponseEntity.noContent().build();
     }
 
+    // POST - Login
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> user) {
         String email = user.get("email");
@@ -72,10 +63,9 @@ public class UsuarioController {
         Optional<Usuario> usuario = usuarioService.login(email, senha);
 
         if (usuario.isPresent()) {
-            return ResponseEntity.ok(usuario.get()); // retorna ResponseEntity<Usuario>
+            return ResponseEntity.ok(usuario.get());
         } else {
-            return ResponseEntity.status(401).body("Email ou senha inválidos!"); // retorna ResponseEntity<String>
+            return ResponseEntity.status(401).body("Email ou senha inválidos!");
         }
     }
-
 }

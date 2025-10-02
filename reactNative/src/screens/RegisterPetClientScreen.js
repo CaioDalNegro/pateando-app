@@ -1,12 +1,12 @@
 // src/screens/RegisterPetClientScreen.js
 import React, { useState, useContext } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, ScrollView, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
-import { AuthContext } from '../context/AuthContext'; // NOVO
-import api from '../services/api'; // NOVO
-import { COLORS } from '../theme/colors'; // NOVO
+import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
+import { COLORS } from '../theme/colors';
 
 export default function RegisterPetClientScreen({ navigation }) {
-  const { user } = useContext(AuthContext); // NOVO
+  const { user } = useContext(AuthContext);
   const [nome, setNome] = useState('');
   const [idade, setIdade] = useState('');
   const [peso, setPeso] = useState('');

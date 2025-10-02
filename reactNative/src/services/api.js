@@ -5,8 +5,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // 1. Corrigido para ter apenas uma baseURL ativa.
 //    Descomente a linha que você quer usar e comente a outra.
 const api = axios.create({
-  baseURL: "http://10.110.12.21:8081", // <-- ESTA ESTÁ ATIVA
-  // baseURL: "http://10.110.12.20:8081", // <-- ESTA ESTÁ INATIVA
+
+  /*
+    - Use localhost para rodar no PC.
+    - Use o IP da maquina para rodar no mobile.
+  */
+
+  //baseURL: "http://10.110.12.21:8080",
+  baseURL: "http://localhost:8080",
 });
 
 
