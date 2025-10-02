@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   SafeAreaView,
   Platform,
   ActivityIndicator,
@@ -13,6 +14,7 @@ import {
 import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 import { COLORS } from "../theme/colors";
+import { Ionicons } from "@expo/vector-icons";
 
 import CardInfo from "../components/CardInfo";
 import DogwalkerItem from "../components/DogwalkerItem";

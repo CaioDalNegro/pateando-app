@@ -33,17 +33,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const response = await api.post('/usuarios/login', { email, senha: password });
-    const { token, usuario } = response.data;
-    
-    setUser(usuario);
-    api.defaults.headers.Authorization = `Bearer ${token}`;
-    
-    if (Platform.OS !== 'web') {
-      await AsyncStorage.setItem('user', JSON.stringify(usuario));
-      await AsyncStorage.setItem('token', token);
-    }
-  };
+  const response = await api.post('/usuarios/login', { email, senha: password });
+  const usuario = response.data; // usuário vem direto
+  setUser(usuario);
+
+  if (Platform.OS !== 'web') {
+    await AsyncStorage.setItem('user', JSON.stringify(usuario));
+  }
+};
+
 
   const logout = async () => {
     setUser(null);
