@@ -92,8 +92,9 @@ export default function InicialClientScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <Text style={styles.greeting}>Bem-vindo,</Text>
+        <Text style={styles.greeting}>Bem-vindo(a),</Text>
         <Text style={styles.clientName}>{user?.nome || "Cliente"}!</Text>
+
 
         <CardInfo pet={petPasseandoAtualmente} />
 
