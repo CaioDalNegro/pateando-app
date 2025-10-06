@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { Calendar, CalendarList, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { COLORS } from '../theme/colors';
 import AgendaItem from '../components/AgendaItem';
 import { AuthContext } from '../context/AuthContext';
@@ -14,74 +13,43 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const getTodayDate = () => new Date().toISOString().split('T')[0];
-
 const allAppointments = {
-  [getTodayDate()]: [
-    { id: '1', petName: 'Rex', time: '09:00 - 10:00', price: 35.00 },
-    { id: '2', petName: 'Luna', time: '14:00 - 15:00', price: 35.00 },
+  '2025-10-20': [{ id: '1', petName: 'Bolinha', time: '2:00pm - 4:00pm', price: 50.00 }],
+  '2025-10-22': [
+    { id: '2', petName: 'Rex', time: '9:00am - 10:00am', price: 35.00 },
+    { id: '3', petName: 'Luna', time: '1:00pm - 2:00pm', price: 35.00 },
   ],
-  '2025-10-06': [{ id: '3', petName: 'Bolinha', time: '14:00 - 16:00', price: 50.00 }],
-  '2025-10-08': [{ id: '4', petName: 'Max', time: '15:00 - 15:30', price: 25.00 }],
+  '2025-11-05': [{ id: '4', petName: 'Max', time: '3:00pm - 3:30pm', price: 25.00 }],
 };
+
+const getTodayDate = () => new Date().toISOString().split('T')[0];
 
 LocaleConfig.locales['pt-br'] = {
   monthNames: ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  monthNamesShort: ['Jan.','Fev.','Mar','Abr','Mai','Jun','Jul.','Ago','Set.','Out.','Nov.','Dez.'],
+  dayNames: ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'],
   dayNamesShort: ['D','S','T','Q','Q','S','S'],
+  today: 'Hoje'
 };
 LocaleConfig.defaultLocale = 'pt-br';
 
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Bom dia,";
-  if (hour < 18) return "Boa tarde,";
-  return "Boa noite,";
-};
-
 export default function DogWalkerHomeScreen() {
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [isMonthView, setIsMonthView] = useState(false);
   const [availabilityStatus, setAvailabilityStatus] = useState('available');
 
-  const appointmentsForDay = useMemo(() => {
-    const appointments = allAppointments[selectedDate] || [];
-    return appointments.sort((a, b) => parseInt(a.time.split(':')[0]) - parseInt(b.time.split(':')[0]));
-  }, [selectedDate]);
+  const appointmentsForDay = useMemo(() => allAppointments[selectedDate] || [], [selectedDate]);
 
   const daySummary = useMemo(() => {
     const totalAppointments = appointmentsForDay.length;
     const totalEarnings = appointmentsForDay.reduce((sum, app) => sum + app.price, 0);
     return { totalAppointments, totalEarnings };
   }, [appointmentsForDay]);
-  
-  const nextAppointmentId = useMemo(() => {
-    if (selectedDate !== getTodayDate()) return null;
-    const now = new Date();
-    for (const app of appointmentsForDay) {
-      const hour = parseInt(app.time.split(':')[0]);
-      if (hour >= now.getHours()) return app.id;
-    }
-    return null;
-  }, [appointmentsForDay, selectedDate]);
 
   useEffect(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   }, [appointmentsForDay]);
-
-  const triggerHaptic = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-  
-  const handleDayPress = (day) => {
-    triggerHaptic();
-    setSelectedDate(day.dateString);
-  };
-
-  const handleStatusChange = (status) => {
-    triggerHaptic();
-    setAvailabilityStatus(status);
-  };
 
   const markedDates = useMemo(() => ({
     [selectedDate]: { selected: true, selectedColor: COLORS.primary },
@@ -93,8 +61,13 @@ export default function DogWalkerHomeScreen() {
       return acc;
     }, {})
   }), [selectedDate]);
-  
-  const calendarProps = { current: selectedDate, onDayPress: handleDayPress, markedDates, theme: calendarTheme };
+
+  const calendarProps = {
+    current: selectedDate,
+    onDayPress: (day) => setSelectedDate(day.dateString),
+    markedDates: markedDates,
+    theme: calendarTheme,
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -103,10 +76,10 @@ export default function DogWalkerHomeScreen() {
           <>
             <View style={styles.header}>
               <View>
-                <Text style={styles.welcomeTitle}>{getGreeting()}</Text>
-                <Text style={styles.welcomeName}>{user?.nome || 'Dogwalker'}</Text>
+                <Text style={styles.welcomeTitle}>Bem-vindo,</Text>
+                <Text style={styles.welcomeName}>{user?.nome || '[Dogwalker]'}</Text>
               </View>
-              <TouchableOpacity onPress={logout}><Ionicons name="log-out-outline" size={28} color={COLORS.primary} /></TouchableOpacity>
+              <TouchableOpacity><Ionicons name="notifications-outline" size={24} color={COLORS.black} /></TouchableOpacity>
             </View>
 
             <View style={styles.summaryContainer}>
@@ -115,12 +88,18 @@ export default function DogWalkerHomeScreen() {
                 totalizando <Text style={styles.summaryHighlight}>R$ {daySummary.totalEarnings.toFixed(2)}</Text>
               </Text>
             </View>
-            
+
             <View style={styles.statusContainer}>
-              <TouchableOpacity style={[styles.statusButton, availabilityStatus === 'available' && styles.statusButtonActiveGreen]} onPress={() => handleStatusChange('available')}>
+              <TouchableOpacity 
+                style={[styles.statusButton, availabilityStatus === 'available' && styles.statusButtonActiveGreen]}
+                onPress={() => setAvailabilityStatus('available')}
+              >
                 <Text style={[styles.statusButtonText, availabilityStatus === 'available' && styles.statusTextActive]}>Disponível</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.statusButton, availabilityStatus === 'unavailable' && styles.statusButtonActiveRed]} onPress={() => handleStatusChange('unavailable')}>
+              <TouchableOpacity 
+                style={[styles.statusButton, availabilityStatus === 'unavailable' && styles.statusButtonActiveRed]}
+                onPress={() => setAvailabilityStatus('unavailable')}
+              >
                 <Text style={[styles.statusButtonText, availabilityStatus === 'unavailable' && styles.statusTextActive]}>Indisponível</Text>
               </TouchableOpacity>
             </View>
@@ -128,9 +107,16 @@ export default function DogWalkerHomeScreen() {
             <View style={styles.calendarHeader}>
               <Text style={styles.monthText}>{new Date(selectedDate.replace(/-/g, '/')).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</Text>
               <View style={styles.switchContainer}>
-                <TouchableOpacity onPress={() => { triggerHaptic(); setSelectedDate(getTodayDate()); }} style={styles.todayButton}><Text style={styles.todayButtonText}>Hoje</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => setSelectedDate(getTodayDate())} style={styles.todayButton}>
+                  <Text style={styles.todayButtonText}>Hoje</Text>
+                </TouchableOpacity>
                 <Text style={styles.switchLabel}>Mês</Text>
-                <Switch trackColor={{ false: '#C7C7CC', true: COLORS.primary }} thumbColor={isMonthView ? COLORS.white : '#f4f3f4'} onValueChange={() => { triggerHaptic(); setIsMonthView(!isMonthView); }} value={isMonthView} />
+                <Switch
+                  trackColor={{ false: '#C7C7CC', true: COLORS.primary }}
+                  thumbColor={isMonthView ? COLORS.white : '#f4f3f4'}
+                  onValueChange={() => setIsMonthView(previousState => !previousState)}
+                  value={isMonthView}
+                />
               </View>
             </View>
 
@@ -143,7 +129,7 @@ export default function DogWalkerHomeScreen() {
         }
         data={appointmentsForDay}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <AgendaItem appointment={item} isNext={item.id === nextAppointmentId} />}
+        renderItem={({ item }) => <AgendaItem appointment={item} />}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -151,7 +137,7 @@ export default function DogWalkerHomeScreen() {
             <Text style={styles.emptyTitle}>Dia livre pela frente!</Text>
             <Text style={styles.emptyText}>Parece que não há passeios agendados para este dia.</Text>
             {availabilityStatus !== 'available' && (
-              <TouchableOpacity style={styles.emptyButton} onPress={() => handleStatusChange('available')}>
+              <TouchableOpacity style={styles.emptyButton} onPress={() => setAvailabilityStatus('available')}>
                 <Text style={styles.emptyButtonText}>Ficar Disponível</Text>
               </TouchableOpacity>
             )}
@@ -162,7 +148,6 @@ export default function DogWalkerHomeScreen() {
   );
 }
 
-// CORRIGIDO: Objeto de tema do calendário preenchido
 const calendarTheme = {
   calendarBackground: COLORS.background,
   textSectionTitleColor: '#b6c1cd',

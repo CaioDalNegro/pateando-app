@@ -8,6 +8,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import InicialClientScreen from '../screens/InicialClientScreen';
 import MyPetsScreen from '../screens/MyPetsScreen';
 import RegisterPetClientScreen from '../screens/RegisterPetClientScreen';
+import DogWalkerHomeScreen from '../screens/DogWalkerHomeScreen';
 import { COLORS } from '../theme/colors';
 
 const Stack = createStackNavigator();
@@ -21,6 +22,7 @@ const AuthStack = () => (
 
 const AppStack = () => (
   <>
+      <Stack.Screen name="DogWalkerHome" component={DogWalkerHomeScreen} /> 
     <Stack.Screen name="InicialClient" component={InicialClientScreen} />
     <Stack.Screen name="MyPets" component={MyPetsScreen} />
     <Stack.Screen name="RegisterPetClient" component={RegisterPetClientScreen} />

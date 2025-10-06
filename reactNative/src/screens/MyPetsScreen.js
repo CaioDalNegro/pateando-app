@@ -1,12 +1,22 @@
 // src/screens/MyPetsScreen.js
-import React, { useState, useContext, useCallback, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, SafeAreaView, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useContext, useCallback, useEffect } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  SafeAreaView,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
 // Importamos os dois hooks: useEffect para a web, useFocusEffect para o nativo
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { AuthContext } from '../context/AuthContext';
-import api from '../services/api';
-import { COLORS } from '../theme/colors';
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { AuthContext } from "../context/AuthContext";
+import api from "../services/api";
+import { COLORS } from "../theme/colors";
 
 export default function MyPetsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -22,8 +32,8 @@ export default function MyPetsScreen({ navigation }) {
       const response = await api.get(`/pets/usuario/${user.id}`); // Ajuste a rota se necessário
       setPets(response.data);
     } catch (err) {
-      console.error('Erro ao carregar pets:', err);
-      setError('Não foi possível carregar seus pets.');
+      console.error("Erro ao carregar pets:", err);
+      setError("Não foi possível carregar seus pets.");
     } finally {
       setIsLoading(false);
     }
@@ -33,8 +43,7 @@ export default function MyPetsScreen({ navigation }) {
   // ## ALTERAÇÃO PRINCIPAL: Lógica Multiplataforma para os Hooks ##
   // ###############################################################
 
-  if (Platform.OS === 'web') {
-    // Na Web, usamos o useEffect simples para evitar o crash.
+  if (Platform.OS === "web") {
     // Ele será executado apenas uma vez quando o componente montar.
     useEffect(() => {
       fetchPets();
@@ -48,8 +57,6 @@ export default function MyPetsScreen({ navigation }) {
       }, [fetchPets])
     );
   }
-  
-  // ###############################################################
 
   const removePet = async (petId) => {
     try {
@@ -63,14 +70,14 @@ export default function MyPetsScreen({ navigation }) {
   };
 
   const handleRemovePress = (petId) => {
-    Alert.alert(
-      "Remover Pet",
-      "Tem certeza que deseja remover este pet?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Remover", style: "destructive", onPress: () => removePet(petId) }
-      ]
-    );
+    Alert.alert("Remover Pet", "Tem certeza que deseja remover este pet?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Remover",
+        style: "destructive",
+        onPress: () => removePet(petId),
+      },
+    ]);
   };
 
   const renderPet = ({ item }) => (
@@ -78,8 +85,13 @@ export default function MyPetsScreen({ navigation }) {
       <Text style={styles.petName}>{item.nome}</Text>
       <Text style={styles.petInfo}>Idade: {item.idade}</Text>
       <Text style={styles.petInfo}>Peso: {item.peso} kg</Text>
-      {item.observacoes ? <Text style={styles.petInfo}>Info: {item.observacoes}</Text> : null}
-      <TouchableOpacity style={styles.removeButton} onPress={() => handleRemovePress(item.id)}>
+      {item.observacoes ? (
+        <Text style={styles.petInfo}>Info: {item.observacoes}</Text>
+      ) : null}
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => handleRemovePress(item.id)}
+      >
         <Text style={styles.removeButtonText}>Remover</Text>
       </TouchableOpacity>
     </View>
@@ -88,7 +100,11 @@ export default function MyPetsScreen({ navigation }) {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator style={{ marginTop: 50 }} size="large" color={COLORS.primary} />
+        <ActivityIndicator
+          style={{ marginTop: 50 }}
+          size="large"
+          color={COLORS.primary}
+        />
       </SafeAreaView>
     );
   }
@@ -109,12 +125,17 @@ export default function MyPetsScreen({ navigation }) {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderPet}
         ListEmptyComponent={() => (
-          <Text style={styles.noPets}>Você ainda não tem pets cadastrados.</Text>
+          <Text style={styles.noPets}>
+            Você ainda não tem pets cadastrados.
+          </Text>
         )}
         contentContainerStyle={styles.listContainer}
       />
 
-      <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('RegisterPetClient')}>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => navigation.navigate("RegisterPetClient")}
+      >
         <Text style={styles.addButtonText}>+ Adicionar Novo Pet</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -122,17 +143,67 @@ export default function MyPetsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.background, paddingTop: Platform.OS === 'android' ? 25 : 0, },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20, },
-  title: { fontSize: 28, fontWeight: 'bold', color: COLORS.primary, marginLeft: 20, flex: 1, },
-  listContainer: { paddingHorizontal: 20, flexGrow: 1, },
-  noPets: { fontSize: 16, color: COLORS.textSecondary, textAlign: 'center', marginTop: 50, },
-  petCard: { backgroundColor: COLORS.card, borderRadius: 12, padding: 15, marginBottom: 15, elevation: 3, },
-  petName: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary, marginBottom: 8, },
-  petInfo: { fontSize: 16, color: COLORS.textPrimary, marginBottom: 4, },
-  removeButton: { marginTop: 10, backgroundColor: COLORS.primary, padding: 10, borderRadius: 8, alignItems: 'center', },
-  removeButtonText: { color: COLORS.white, fontWeight: 'bold', },
-  addButton: { backgroundColor: COLORS.primary, padding: 15, borderRadius: 12, width: '90%', alignSelf: 'center', alignItems: 'center', marginBottom: 30, },
-  addButtonText: { color: COLORS.white, fontWeight: 'bold', fontSize: 16, },
-  errorText: { color: COLORS.error, textAlign: 'center', marginBottom: 10, fontSize: 16 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    paddingTop: Platform.OS === "android" ? 25 : 0,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: COLORS.primary,
+    marginLeft: 20,
+    flex: 1,
+  },
+  listContainer: { paddingHorizontal: 20, flexGrow: 1 },
+  noPets: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginTop: 50,
+  },
+  petCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    elevation: 3,
+  },
+  petName: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.primary,
+    marginBottom: 8,
+  },
+  petInfo: { fontSize: 16, color: COLORS.textPrimary, marginBottom: 4 },
+  removeButton: {
+    marginTop: 10,
+    backgroundColor: COLORS.primary,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  removeButtonText: { color: COLORS.white, fontWeight: "bold" },
+  addButton: {
+    backgroundColor: COLORS.primary,
+    padding: 15,
+    borderRadius: 12,
+    width: "90%",
+    alignSelf: "center",
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  addButtonText: { color: COLORS.white, fontWeight: "bold", fontSize: 16 },
+  errorText: {
+    color: COLORS.error,
+    textAlign: "center",
+    marginBottom: 10,
+    fontSize: 16,
+  },
 });

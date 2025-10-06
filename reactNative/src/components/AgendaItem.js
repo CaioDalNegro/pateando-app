@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
@@ -7,7 +7,6 @@ import api from '../services/api';
 export const AuthContext = React.createContext({});
 
 // --- USUÁRIO FAKE PARA TESTES ---
-// Este objeto simula um dog walker logado.
 const FAKE_DOGWALKER_USER = {
   id: 'dev-walker-123',
   nome: 'Walker Teste',
@@ -27,7 +26,14 @@ export const AuthProvider = ({ children }) => {
 
   // Função de login real (pode ser usada no futuro)
   const login = async (email, password) => {
-    // A lógica de login real iria aqui...
+    const response = await api.post('/usuarios/login', { email, senha: password });
+    const { token, usuario } = response.data;
+    setUser(usuario);
+    api.defaults.headers.Authorization = `Bearer ${token}`;
+    if (Platform.OS !== 'web') {
+      await AsyncStorage.setItem('user', JSON.stringify(usuario));
+      await AsyncStorage.setItem('token', token);
+    }
   };
 
   // Função de logout que funciona para o usuário fake também
