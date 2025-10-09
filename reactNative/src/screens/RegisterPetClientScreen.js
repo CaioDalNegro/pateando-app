@@ -11,8 +11,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { AuthContext } from './src/context/AuthContext';
-import api from './src/services/api';
+import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
 
 export default function RegisterPetClientScreen({ navigation }) {
   const { user } = useContext(AuthContext);
