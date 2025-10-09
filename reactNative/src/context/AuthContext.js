@@ -1,36 +1,50 @@
-import React from 'react';
-import { useState } from 'react';
+// src/context/AuthContext.js
+import React, { createContext, useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
-export const AuthContext = React.createContext({});
-
-// --- USUÁRIO FAKE PARA TESTES ---
-// Este objeto simula um dog walker logado.
-const FAKE_DOGWALKER_USER = {
-  id: 'dev-walker-123',
-  nome: 'Walker Teste',
-  email: 'teste@pateando.com',
-  tipoUsuario: 'dogwalker',
-};
-// ------------------------------------
+export const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-  // Inicia com o usuário fake para desenvolvimento
-  const [user, setUser] = useState(FAKE_DOGWALKER_USER);
-  
-  // PARA VOLTAR AO NORMAL (COM TELA DE LOGIN), USE:
-  // const [user, setUser] = useState(null);
-  
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Função de login real (pode ser usada no futuro)
+  useEffect(() => {
+    const loadUserFromStorage = async () => {
+      // Na web, o AsyncStorage pode não estar disponível ou pode causar erros na inicialização.
+      // Por enquanto, vamos pular a persistência de login na web para evitar o erro.
+      if (Platform.OS === 'web') {
+        setIsLoading(false);
+        return;
+      }
+
+      const storedUser = await AsyncStorage.getItem('user');
+      const storedToken = await AsyncStorage.getItem('token');
+
+      if (storedUser && storedToken) {
+        setUser(JSON.parse(storedUser));
+        api.defaults.headers.Authorization = `Bearer ${storedToken}`;
+      }
+      setIsLoading(false);
+    };
+
+    loadUserFromStorage();
+  }, []);
+
+  // 🔐 Login real (autenticação via API)
+
   const login = async (email, password) => {
-    // A lógica de login real iria aqui...
-  };
+   const response = await api.post('/usuarios/login', { email, senha: password });
+  const usuario = response.data; // usuário vem direto
+  setUser(usuario);
 
-  // Função de logout que funciona para o usuário fake também
+  if (Platform.OS !== 'web') {
+    await AsyncStorage.setItem('user', JSON.stringify(usuario));
+  }
+};
+
+
   const logout = async () => {
     setUser(null);
     delete api.defaults.headers.Authorization;
@@ -39,24 +53,9 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.removeItem('token');
     }
   };
-  
-  // Função para o botão de bypass, caso queira voltar a usá-lo
-  const signInForDevelopment = (fakeUser) => {
-    setUser(fakeUser);
-    api.defaults.headers.Authorization = `Bearer FAKE_TOKEN_FOR_DEV`;
-  };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        isAuthenticated: !!user, 
-        isLoading, 
-        login, 
-        logout,
-        signInForDevelopment
-      }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
