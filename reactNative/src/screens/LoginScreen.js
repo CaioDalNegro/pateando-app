@@ -28,16 +28,17 @@ export default function LoginScreen({ navigation }) {
   const [error, setError] = useState(null);
 
   const handleLogin = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        await login(email, password);
-      } catch (err) {
-        setError("Email ou senha inválidos!");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    setIsLoading(true);
+    setError(null);
+    try {
+      // 👈 Passe o perfil selecionado
+      await login(email, password, selectedRole); 
+    } catch (err) {
+      setError("Email ou senha inválidos!");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
    return (
     <SafeAreaView style={styles.safeArea}>
