@@ -2,89 +2,68 @@ import React, { useContext } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-// Importações de telas
+import { COLORS } from '../theme/colors';
+
+// Importando TODAS as telas
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import InicialClientScreen from '../screens/InicialClientScreen';
+import DogWalkerHomeScreen from '../screens/DogWalkerHomeScreen';
 import MyPetsScreen from '../screens/MyPetsScreen';
 import RegisterPetClientScreen from '../screens/RegisterPetClientScreen';
-import DogWalkerHomeScreen from '../screens/DogWalkerHomeScreen';
-import { COLORS } from '../theme/colors'; 
+import AgendaScreen from '../screens/AgendaScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import EditProfileScreen from '../screens/EditProfileScreen'; // NOVO
 
 const Stack = createStackNavigator();
 
-// === TELAS PARA USUÁRIOS NÃO AUTENTICADOS ===
-const AuthScreens = () => (
-    <> 
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-    </>
+const AuthStack = () => (
+  <>
+    <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Screen name="Register" component={RegisterScreen} />
+  </>
 );
 
-// === TELAS EXCLUSIVAS PARA CLIENTES ===
-const ClientStack = () => (
-    <>
-        {/* Rotas que só Clientes podem ver */}
-        <Stack.Screen name="InicialClient" component={InicialClientScreen} />
-        <Stack.Screen name="MyPets" component={MyPetsScreen} />
-        <Stack.Screen name="RegisterPetClient" component={RegisterPetClientScreen} />
-    </>
+const ClientAppStack = () => (
+  <>
+    <Stack.Screen name="InicialClient" component={InicialClientScreen} />
+    <Stack.Screen name="MyPets" component={MyPetsScreen} />
+    <Stack.Screen name="RegisterPetClient" component={RegisterPetClientScreen} />
+    <Stack.Screen name="Agenda" component={AgendaScreen} />
+    <Stack.Screen name="Profile" component={ProfileScreen} />
+    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+  </>
 );
 
-// === TELAS EXCLUSIVAS PARA DOGWALKERS ===
-const DogWalkerStack = () => (
-    <>
-        {/* Rotas que só DogWalkers podem ver */}
-        <Stack.Screen name="DogWalkerHome" component={DogWalkerHomeScreen} />
-    </>
+const DogWalkerAppStack = () => (
+  <>
+    <Stack.Screen name="DogWalkerHome" component={DogWalkerHomeScreen} />
+  </>
 );
 
 export default function AppNavigator() {
-    // É crucial que o 'user' venha com o campo 'role' ('cliente' ou 'dogwalker')
-    const { user, isLoading, isAuthenticated } = useContext(AuthContext);
+  const { user, isLoading } = useContext(AuthContext);
 
-    if (isLoading) {
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
-        );
-    }
-
-    // Variáveis de controle
-    let ScreenStack;
-    let initialRoute;
-    
-    // Lógica para decidir qual Stack (conjunto de rotas) será renderizado
-    if (isAuthenticated) {
-        // Usuário está logado. Verifica a função.
-        if (user?.role === 'cliente') {
-            ScreenStack = ClientStack;
-            initialRoute = 'InicialClient';
-        } else if (user?.role === 'dogwalker') {
-            ScreenStack = DogWalkerStack;
-            initialRoute = 'DogWalkerHome';
-        } else {
-            // Fallback: Se o usuário está logado, mas a função é desconhecida,
-            // podemos forçar o logout ou mandá-lo para a tela mais restrita (DogWalker, por ex.)
-            ScreenStack = ClientStack; 
-            initialRoute = 'InicialClient';
-        }
-    } else {
-        // Usuário não está logado
-        ScreenStack = AuthScreens;
-        initialRoute = 'Login';
-    }
-
-
+  if (isLoading) {
     return (
-        <Stack.Navigator 
-            screenOptions={{ headerShown: false }}
-            // Define a primeira tela do Stack que será carregado
-            initialRouteName={initialRoute} 
-        >
-            {/* Renderiza APENAS o conjunto de telas escolhido (Auth, Client ou DogWalker) */}
-            {ScreenStack()} 
-        </Stack.Navigator>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
     );
+  }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {!user ? (
+        AuthStack()
+      ) : user.tipoUsuario === 'cliente' ? (
+        ClientAppStack()
+      ) : user.tipoUsuario === 'dogwalker' ? (
+        DogWalkerAppStack()
+      ) : (
+        AuthStack()
+      )}
+    </Stack.Navigator>
+  );
 }
+

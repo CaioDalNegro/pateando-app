@@ -1,140 +1,70 @@
-// src/screens/InicialClientScreen.js
-import React, { useState, useEffect, useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   SafeAreaView,
   Platform,
-  ActivityIndicator,
-  FlatList,
+  TouchableOpacity,
+  LayoutAnimation,
+  UIManager,
 } from "react-native";
-import { AuthContext } from "../context/AuthContext";
-import api from "../services/api";
-import { COLORS } from "../theme/colors";
 import { Ionicons } from "@expo/vector-icons";
-
+import { AuthContext } from "../context/AuthContext";
+import { COLORS } from "../theme/colors";
 import CardInfo from "../components/CardInfo";
-import DogwalkerItem from "../components/DogwalkerItem";
 import NavButton from "../components/NavButton";
 
-// DADOS DE EXEMPLO - Substitua pelos dados da sua API
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const petPasseandoAtualmente = {
   name: "Bolinha",
-  imageUri:
-    "https://i.pinimg.com/736x/a7/d7/7b/a7d77b1923945a2a2b9758b09f5b6b1b.jpg",
+  imageUri: "https://i.pinimg.com/736x/a7/d7/7b/a7d77b1923945a2a2b9758b09f5b6b1b.jpg",
   walkInfo: { distance: "0.8", time: "25" },
 };
-const exampleWalkers = [
-  {
-    id: "1",
-    name: "João Silva",
-    imageUri: "https://randomuser.me/api/portraits/men/32.jpg",
-    rating: 4.8,
-    distance: "500m",
-  },
-  {
-    id: "2",
-    name: "Maria Clara",
-    imageUri: "https://randomuser.me/api/portraits/women/44.jpg",
-    rating: 4.9,
-    distance: "1.2km",
-  },
-  {
-    id: "3",
-    name: "Paulo Neto",
-    imageUri: "https://randomuser.me/api/portraits/men/36.jpg",
-    rating: 4.7,
-    distance: "800m",
-  },
-];
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Bom dia,";
+  if (hour < 18) return "Boa tarde,";
+  return "Boa noite,";
+};
 
 export default function InicialClientScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
-  const [dogwalkers, setDogwalkers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDogwalkers = async () => {
-      try {
-        // const response = await api.get('/usuarios/dogwalkers');
-        // setDogwalkers(response.data);
-        setDogwalkers(exampleWalkers); // Usando dados de exemplo por enquanto
-      } catch (error) {
-        console.error("Erro ao buscar dogwalkers:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchDogwalkers();
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   }, []);
-
-  const handleWalkerPress = (walker) => {
-    console.log("Selecionou o walker:", walker.name);
-    // navigation.navigate('WalkerProfile', { walkerId: walker.id });
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={logout}>
-          <Ionicons name="log-out-outline" size={28} color={COLORS.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Ionicons
-            name="notifications-outline"
-            size={24}
-            color={COLORS.black}
-          />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <Text style={styles.greeting}>Bem-vindo(a),</Text>
-        <Text style={styles.clientName}>{user?.nome || "Cliente"}!</Text>
-
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.clientName}>{user?.nome || "Cliente"}!</Text>
+          </View>
+          <TouchableOpacity onPress={logout}>
+            <Ionicons name="log-out-outline" size={28} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
 
         <CardInfo pet={petPasseandoAtualmente} />
 
+        <TouchableOpacity style={styles.ctaButton} onPress={() => navigation.navigate('Agenda')}>
+          <Text style={styles.ctaButtonText}>Agendar um Passeio</Text>
+          <Ionicons name="arrow-forward-circle" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+
         <View style={styles.navButtonsContainer}>
-          <NavButton
-            icon="paw-outline"
-            text="Meus Pets"
-            onPress={() => navigation.navigate("MyPets")}
-          />
-          <NavButton icon="calendar-outline" text="Agenda" onPress={() => {}} />
-          <NavButton icon="person-outline" text="Perfil" onPress={() => {}} />
+          <NavButton icon="paw-outline" text="Meus Pets" onPress={() => navigation.navigate('MyPets')} />
+          <NavButton icon="calendar-outline" text="Agenda" onPress={() => navigation.navigate('Agenda')} />
+          <NavButton icon="person-outline" text="Perfil" onPress={() => navigation.navigate('Profile')} />
         </View>
-
-        <View style={styles.dogwalkersHeader}>
-          <Text style={styles.dogwalkersTitle}>Dogwalkers</Text>
-          <Text style={styles.findAllText}>Ver todos</Text>
-        </View>
-
-        {isLoading ? (
-          <ActivityIndicator
-            size="large"
-            color={COLORS.primary}
-            style={{ marginTop: 20 }}
-          />
-        ) : (
-          <FlatList
-            data={dogwalkers}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <DogwalkerItem
-                walker={item}
-                onPress={() => handleWalkerPress(item)}
-              />
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 10, paddingLeft: 20 }}
-            style={{ marginHorizontal: -20 }} // Compensa o padding do container principal
-          />
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -145,30 +75,49 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 16,
     alignItems: "center",
+    paddingTop: Platform.OS === "android" ? 16 : 0,
+    marginBottom: 16,
   },
-  scrollViewContent: { paddingHorizontal: 24, paddingBottom: 24 },
-  greeting: { fontSize: 24, color: COLORS.textSecondary, marginTop: 8 },
+  scrollViewContent: { 
+    paddingHorizontal: 24, 
+    paddingBottom: 24 
+  },
+  greeting: { 
+    fontSize: 24, 
+    color: COLORS.textSecondary 
+  },
   clientName: {
     fontSize: 32,
     fontWeight: "bold",
     color: COLORS.primary,
     marginBottom: 24,
   },
+  ctaButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 32,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  ctaButtonText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   navButtonsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginVertical: 32,
+    marginTop: 24,
     gap: 16,
   },
-  dogwalkersHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  dogwalkersTitle: { fontSize: 22, fontWeight: "bold", color: COLORS.primary },
-  findAllText: { color: COLORS.primary, fontWeight: "600" },
 });
+
