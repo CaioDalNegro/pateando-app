@@ -31,7 +31,6 @@ export default function LoginScreen({ navigation }) {
     setIsLoading(true);
     setError(null);
     try {
-      // 👈 Passe o perfil selecionado
       await login(email, password, selectedRole); 
     } catch (err) {
       setError("Email ou senha inválidos!");

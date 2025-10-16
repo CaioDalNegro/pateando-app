@@ -31,18 +31,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const response = await api.post("/usuarios/login", {
-      email,
-      senha: password,
-    });
-    const { token, usuario } = response.data;
-    setUser(usuario);
-    api.defaults.headers.Authorization = `Bearer ${token}`;
-    if (Platform.OS !== "web") {
-      await AsyncStorage.setItem("user", JSON.stringify(usuario));
-      await AsyncStorage.setItem("token", token);
-    }
-    return usuario;
+  const response = await api.post("/usuarios/login", {
+    email,
+    senha: password,
+  });
+
+  // sua API já retorna o usuário direto
+  const usuario = response.data;
+
+  console.log("Usuário logado:", usuario);
+
+  setUser(usuario);
+
+  // se sua API não usa token, você pode remover esta parte:
+  if (Platform.OS !== "web") {
+    await AsyncStorage.setItem("user", JSON.stringify(usuario));
+  }
+
+  return usuario;
   };
 
   const logout = async () => {
