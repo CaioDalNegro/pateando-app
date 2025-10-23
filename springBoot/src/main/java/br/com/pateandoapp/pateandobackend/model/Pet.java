@@ -23,7 +23,7 @@ public class Pet {
     @Column(nullable = false)
     private String nome;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String raca;
 
     @Positive(message = "A idade do cachorro deve ser um numero positivo")

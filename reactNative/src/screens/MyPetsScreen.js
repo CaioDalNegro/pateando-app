@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -13,39 +13,32 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../theme/colors";
-
-// Dados de exemplo. No futuro, virão da API.
-const examplePets = [
-  {
-    id: "1",
-    nome: "Bolinha",
-    idade: 5,
-    peso: 12,
-    observacoes: "Adora buscar a bolinha.",
-  },
-  {
-    id: "2",
-    nome: "Rex",
-    idade: 2,
-    peso: 8,
-    observacoes: "Um pouco medroso com barulhos altos.",
-  },
-];
+import { AuthContext } from "../context/AuthContext";
+import api from "../services/api";
 
 export default function MyPetsScreen({ navigation }) {
+  const { user } = useContext(AuthContext);
   const [pets, setPets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Usamos useFocusEffect para que os dados sejam recarregados
-  // toda vez que o usuário entrar nesta tela.
+  // Buscar pets da API quando a tela for focada
   useFocusEffect(
     useCallback(() => {
-      // Simula uma chamada à API
-      setTimeout(() => {
-        setPets(examplePets);
-        setIsLoading(false);
-      }, 500);
-    }, [])
+      const fetchPets = async () => {
+        try {
+          setIsLoading(true);
+          const response = await api.get(`/pets/user/${user.id}`);
+          setPets(response.data);
+        } catch (error) {
+          console.log("Erro ao buscar pets:", error);
+          Alert.alert("Erro", "Não foi possível carregar seus pets.");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchPets();
+    }, [user.id])
   );
 
   const handleRemovePress = (petName) => {
@@ -67,7 +60,7 @@ export default function MyPetsScreen({ navigation }) {
     <View style={styles.petCard}>
       <Text style={styles.petName}>{item.nome}</Text>
       <Text style={styles.petInfo}>Idade: {item.idade} anos</Text>
-      <Text style={styles.petInfo}>Peso: {item.peso} kg</Text>
+      <Text style={styles.petInfo}>Peso: {item.Peso} kg</Text>
       {item.observacoes && (
         <Text style={styles.petInfo}>Info: {item.observacoes}</Text>
       )}
@@ -98,7 +91,7 @@ export default function MyPetsScreen({ navigation }) {
       ) : (
         <FlatList
           data={pets}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={renderPet}
           ListEmptyComponent={() => (
             <View style={styles.emptyContainer}>

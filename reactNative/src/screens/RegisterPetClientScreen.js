@@ -33,6 +33,8 @@ export default function RegisterPetClientScreen({ navigation }) {
       idade: parseInt(idade),
       peso: parseFloat(peso),
       observacoes,
+      raca: '', // opcional, pode deixar vazio
+      necessidadesEspeciais: ''
     };
 
     try {
