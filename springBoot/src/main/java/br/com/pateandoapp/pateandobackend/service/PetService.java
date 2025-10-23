@@ -1,11 +1,13 @@
 package br.com.pateandoapp.pateandobackend.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import br.com.pateandoapp.pateandobackend.model.Pet;
+import br.com.pateandoapp.pateandobackend.model.Usuario;
 import br.com.pateandoapp.pateandobackend.repository.PetRepository;
 import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 
@@ -22,9 +24,18 @@ public class PetService {
     private UsuarioRepository usuarioRepository;
 
     public Optional<Pet> createPet(Long usuarioId, Pet pet) {
-        return usuarioRepository.findById(usuarioId).map(usuario -> {
+        Optional<Usuario> usuarioOpt = usuarioRepository.findById(usuarioId);
+        if (usuarioOpt.isPresent()) {
+            Usuario usuario = usuarioOpt.get();
             pet.setDono(usuario);
-            return petRepository.save(pet);
-        });
-    }    
+            Pet novoPet = petRepository.save(pet);
+            return Optional.of(novoPet);
+        } else {
+            return Optional.empty();
+        }
+    }   
+    
+    public List<Pet> getPetsByUsuario(Long usuarioId) {
+        return petRepository.findByDonoId(usuarioId);
+    }
 }

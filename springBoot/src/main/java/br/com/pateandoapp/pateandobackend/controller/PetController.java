@@ -1,7 +1,10 @@
 package br.com.pateandoapp.pateandobackend.controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,6 +26,11 @@ public class PetController {
     @Autowired
     private PetService petService;
     
+    @GetMapping("/user/{usuarioId}")
+    public List<Pet> getPetsByUsuario(@PathVariable Long usuarioId) {
+        return petService.getPetsByUsuario(usuarioId);
+    }
+
     @PostMapping("/create/{usuarioId}")
     public Pet createPet(@PathVariable Long usuarioId, @RequestBody Pet pet) {
         return petService.createPet(usuarioId, pet)
