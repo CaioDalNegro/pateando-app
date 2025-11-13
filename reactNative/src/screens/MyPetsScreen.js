@@ -1,15 +1,5 @@
 import React, { useState, useCallback, useContext } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  SafeAreaView,
-  Platform,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, SafeAreaView, Platform, ActivityIndicator,} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../theme/colors";
@@ -21,7 +11,7 @@ export default function MyPetsScreen({ navigation }) {
   const [pets, setPets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Buscar pets da API quando a tela for focada
+  // ====== CARREGAR PETS QUANDO A TELA É FOCADA ======
   useFocusEffect(
     useCallback(() => {
       const fetchPets = async () => {
@@ -41,7 +31,23 @@ export default function MyPetsScreen({ navigation }) {
     }, [user.id])
   );
 
-  const handleRemovePress = (petName) => {
+  // ====== REMOVER PET ======
+  const deletePet = async (petId) => {
+    try {
+      const response = await api.delete(`/pets/delete/${petId}`);
+
+      // Atualiza lista local sem o pet removido
+      setPets((prevPets) => prevPets.filter((p) => p.id !== petId));
+
+      Alert.alert("Sucesso", "Pet removido com sucesso!");
+    } catch (error) {
+      console.log("Erro ao remover pet:", error);
+      Alert.alert("Erro", "Não foi possível remover o pet.");
+    }
+  };
+
+  // Confirmação
+  const handleRemovePress = (petId, petName) => {
     Alert.alert(
       `Remover ${petName}`,
       "Tem certeza que deseja remover este pet?",
@@ -50,23 +56,25 @@ export default function MyPetsScreen({ navigation }) {
         {
           text: "Remover",
           style: "destructive",
-          onPress: () => console.log(`Removendo ${petName}...`),
+          onPress: () => deletePet(petId),
         },
       ]
     );
   };
 
+  // ====== CARD DE PET ======
   const renderPet = ({ item }) => (
     <View style={styles.petCard}>
       <Text style={styles.petName}>{item.nome}</Text>
       <Text style={styles.petInfo}>Idade: {item.idade} anos</Text>
-      <Text style={styles.petInfo}>Peso: {item.Peso} kg</Text>
+
       {item.observacoes && (
         <Text style={styles.petInfo}>Info: {item.observacoes}</Text>
       )}
+
       <TouchableOpacity
         style={styles.removeButton}
-        onPress={() => handleRemovePress(item.nome)}
+        onPress={() => handleRemovePress(item.id, item.nome)}
       >
         <Text style={styles.removeButtonText}>Remover</Text>
       </TouchableOpacity>
@@ -75,6 +83,7 @@ export default function MyPetsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={28} color={COLORS.primary} />
@@ -82,6 +91,7 @@ export default function MyPetsScreen({ navigation }) {
         <Text style={styles.title}>Meus Pets</Text>
       </View>
 
+      {/* LISTA OU LOADING */}
       {isLoading ? (
         <ActivityIndicator
           style={{ flex: 1 }}
@@ -104,6 +114,7 @@ export default function MyPetsScreen({ navigation }) {
         />
       )}
 
+      {/* BOTÃO ADICIONAR */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => navigation.navigate("RegisterPetClient")}
