@@ -1,10 +1,10 @@
 @echo off
 cls
 echo ==========================================================
-echo       INSTALADOR DE DEPENDENCIAS - PATEANDO-APP
+echo       SCRIPT DE INSTALACAO COMPLETO - PATEANDO-APP
 echo ==========================================================
 echo.
-echo Este script ira instalar todas as bibliotecas necessarias
+echo Este script ira instalar TODAS as bibliotecas necessarias
 echo para o projeto React Native.
 echo.
 
@@ -22,7 +22,7 @@ echo.
 :: -----------------------------------------------------------------------------------
 :: COMANDO UNICO COM TODAS AS DEPENDENCIAS QUE UTILIZAMOS NO PROJETO
 :: -----------------------------------------------------------------------------------
-npm install axios @react-native-async-storage/async-storage @react-navigation/native @react-navigation/stack react-native-gesture-handler react-native-reanimated react-native-screens react-native-safe-area-context expo-linear-gradient
+npm install axios @react-native-async-storage/async-storage @react-navigation/native @react-navigation/stack react-native-gesture-handler react-native-reanimated react-native-screens react-native-safe-area-context expo-linear-gradient react-native-maps expo-location @react-native-community/datetimepicker react-native-calendars expo-haptics @expo/vector-icons
 
 :: Verifica se a instalacao foi bem sucedida
 if %errorlevel% neq 0 (

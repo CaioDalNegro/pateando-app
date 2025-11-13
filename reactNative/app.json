@@ -26,7 +26,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "O PateandoApp precisa da sua localização para encontrar dog walkers próximos."
+        }
+      ]
     ]
   }
 }

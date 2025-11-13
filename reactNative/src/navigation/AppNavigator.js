@@ -13,10 +13,13 @@ import MyPetsScreen from '../screens/MyPetsScreen';
 import RegisterPetClientScreen from '../screens/RegisterPetClientScreen';
 import AgendaScreen from '../screens/AgendaScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import EditProfileScreen from '../screens/EditProfileScreen'; // NOVO
+import EditProfileScreen from '../screens/EditProfileScreen';
+import WalkTrackerScreen from '../screens/WalkTrackerScreen.js';
+import SelectDogWalkerScreen from '../screens/SelectDogwalkerScreen.js'; // Corrigido
 
 const Stack = createStackNavigator();
 
+// Grupo de telas para quando NINGUÉM está logado
 const AuthStack = () => (
   <>
     <Stack.Screen name="Login" component={LoginScreen} />
@@ -24,6 +27,7 @@ const AuthStack = () => (
   </>
 );
 
+// Grupo de telas APENAS para o Cliente
 const ClientAppStack = () => (
   <>
     <Stack.Screen name="InicialClient" component={InicialClientScreen} />
@@ -32,9 +36,12 @@ const ClientAppStack = () => (
     <Stack.Screen name="Agenda" component={AgendaScreen} />
     <Stack.Screen name="Profile" component={ProfileScreen} />
     <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+    <Stack.Screen name="WalkTracker" component={WalkTrackerScreen} />
+    <Stack.Screen name="SelectDogWalker" component={SelectDogWalkerScreen} />
   </>
 );
 
+// Grupo de telas APENAS para o Dog Walker
 const DogWalkerAppStack = () => (
   <>
     <Stack.Screen name="DogWalkerHome" component={DogWalkerHomeScreen} />
@@ -46,7 +53,7 @@ export default function AppNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
         <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
@@ -61,9 +68,8 @@ export default function AppNavigator() {
       ) : user.tipoUsuario === 'dogwalker' ? (
         DogWalkerAppStack()
       ) : (
-        AuthStack()
+        AuthStack() 
       )}
     </Stack.Navigator>
   );
 }
-
