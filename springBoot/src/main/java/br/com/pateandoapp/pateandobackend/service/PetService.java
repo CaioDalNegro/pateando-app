@@ -11,9 +11,6 @@ import br.com.pateandoapp.pateandobackend.model.Usuario;
 import br.com.pateandoapp.pateandobackend.repository.PetRepository;
 import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 
-/**
- * Classe de serviço responsável pelas regras de negócio relacionadas aos Pets.
- */
 @Service
 public class PetService {
 
@@ -25,17 +22,26 @@ public class PetService {
 
     public Optional<Pet> createPet(Long usuarioId, Pet pet) {
         Optional<Usuario> usuarioOpt = usuarioRepository.findById(usuarioId);
+
         if (usuarioOpt.isPresent()) {
             Usuario usuario = usuarioOpt.get();
             pet.setDono(usuario);
             Pet novoPet = petRepository.save(pet);
             return Optional.of(novoPet);
-        } else {
-            return Optional.empty();
         }
-    }   
-    
+        return Optional.empty();
+    }
+
     public List<Pet> getPetsByUsuario(Long usuarioId) {
         return petRepository.findByDonoId(usuarioId);
+    }
+
+    // NOVO — remover pet
+    public boolean deletePet(Long petId) {
+        if (petRepository.existsById(petId)) {
+            petRepository.deleteById(petId);
+            return true;
+        }
+        return false;
     }
 }
