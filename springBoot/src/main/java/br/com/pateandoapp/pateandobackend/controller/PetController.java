@@ -3,29 +3,19 @@ package br.com.pateandoapp.pateandobackend.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import br.com.pateandoapp.pateandobackend.model.Pet;
 import br.com.pateandoapp.pateandobackend.service.PetService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
-
-/**
- * Controller responsável pelos endpoints de Pets.
- */
 @RestController
 @RequestMapping("/pets")
-@CrossOrigin(origins = "*") // Permite requisições do app React Native
+@CrossOrigin(origins = "*")
 public class PetController {
-    
+
     @Autowired
     private PetService petService;
-    
+
     @GetMapping("/user/{usuarioId}")
     public List<Pet> getPetsByUsuario(@PathVariable Long usuarioId) {
         return petService.getPetsByUsuario(usuarioId);
@@ -35,5 +25,17 @@ public class PetController {
     public Pet createPet(@PathVariable Long usuarioId, @RequestBody Pet pet) {
         return petService.createPet(usuarioId, pet)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+    }
+
+    // NOVO — Remover pet
+    @DeleteMapping("/delete/{petId}")
+    public String deletePet(@PathVariable Long petId) {
+        boolean removed = petService.deletePet(petId);
+
+        if (removed) {
+            return "Pet removido com sucesso!";
+        } else {
+            return "Pet não encontrado!";
+        }
     }
 }

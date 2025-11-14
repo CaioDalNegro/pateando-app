@@ -12,6 +12,7 @@ const api = axios.create({
   */
   baseURL: "http://10.110.12.20:8081",
   baseURL: "http://10.110.12.20:8080",
+  baseURL: "http://10.110.12.21:8080",
   //baseURL: "http://localhost:8080",
 });
 

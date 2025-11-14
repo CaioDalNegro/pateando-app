@@ -6,9 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Classe que representa o Pet do Cliente.
- */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -23,16 +20,15 @@ public class Pet {
     @Column(nullable = false)
     private String nome;
 
-    @Column(nullable = true)
     private String raca;
 
     @Positive(message = "A idade do cachorro deve ser um numero positivo")
     private int idade;
+
     private String necessidadesEspeciais;
     private String observacoes;
 
-    // Muitos pets pertencem a UM usuário
     @ManyToOne
-    @JoinColumn(name = "usuario_id", referencedColumnName = "id") // Define a coluna "usuario_id" como chave estrangeira, que referencia o "id" da tabela "usuario"
+    @JoinColumn(name = "usuario_id", referencedColumnName = "id")
     private Usuario dono;
 }
