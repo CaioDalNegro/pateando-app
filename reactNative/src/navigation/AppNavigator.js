@@ -4,50 +4,56 @@ import { View, ActivityIndicator } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { COLORS } from '../theme/colors';
 
-// Importando TODAS as telas
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import InicialClientScreen from '../screens/InicialClientScreen';
 import DogWalkerHomeScreen from '../screens/DogWalkerHomeScreen';
 import MyPetsScreen from '../screens/MyPetsScreen';
 import RegisterPetClientScreen from '../screens/RegisterPetClientScreen';
-import AgendaScreen from '../screens/AgendaScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import EditProfileScreen from '../screens/EditProfileScreen';
-import WalkTrackerScreen from '../screens/WalkTrackerScreen.js';
-import SelectDogWalkerScreen from '../screens/SelectDogwalkerScreen.js'; // Corrigido
+import WalkTrackerScreen from '../screens/WalkTrackerScreen.js'; 
+import FinishWalkScreen from '../screens/FinishWalkScreen';
 
 const Stack = createStackNavigator();
 
-// Grupo de telas para quando NINGUÉM está logado
+// ----------------------------------------------------------------------
+// 1. Telas de Autenticação (Acessíveis quando DESLOGADO)
+// ----------------------------------------------------------------------
 const AuthStack = () => (
   <>
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
+    {/* Adicione outras telas de registro, como RegisterDogWalker, aqui se necessário */}
   </>
 );
 
-// Grupo de telas APENAS para o Cliente
+// ----------------------------------------------------------------------
+// 2. Telas do Cliente (Acessíveis quando user.tipoUsuario === 'CLIENTE')
+// ----------------------------------------------------------------------
 const ClientAppStack = () => (
   <>
     <Stack.Screen name="InicialClient" component={InicialClientScreen} />
     <Stack.Screen name="MyPets" component={MyPetsScreen} />
     <Stack.Screen name="RegisterPetClient" component={RegisterPetClientScreen} />
-    <Stack.Screen name="Agenda" component={AgendaScreen} />
-    <Stack.Screen name="Profile" component={ProfileScreen} />
-    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+    {/* ROTA PARA O MAPA DE ACOMPANHAMENTO */}
     <Stack.Screen name="WalkTracker" component={WalkTrackerScreen} />
-    <Stack.Screen name="SelectDogWalker" component={SelectDogWalkerScreen} />
+    {/* Adicione a tela de Agendamento aqui: <Stack.Screen name="Agenda" component={AgendaScreen} /> */}
   </>
 );
 
-// Grupo de telas APENAS para o Dog Walker
+// ----------------------------------------------------------------------
+// 3. Telas do Dog Walker (Acessíveis quando user.tipoUsuario === 'DOGWALKER')
+// ----------------------------------------------------------------------
 const DogWalkerAppStack = () => (
   <>
     <Stack.Screen name="DogWalkerHome" component={DogWalkerHomeScreen} />
+    {/* 👇 NOVO: ROTA PARA FINALIZAR O PASSEIO */}
+    <Stack.Screen name="FinishWalk" component={FinishWalkScreen} />
   </>
 );
 
+// ----------------------------------------------------------------------
+// O Navigator Principal que escolhe qual Stack carregar
+// ----------------------------------------------------------------------
 export default function AppNavigator() {
   const { user, isLoading } = useContext(AuthContext);
 
@@ -61,14 +67,15 @@ export default function AppNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* Lógica de navegação que verifica o tipo de usuário (Role-Based Navigation) */}
       {!user ? (
-        AuthStack()
-      ) : user.tipoUsuario === 'cliente' ? (
-        ClientAppStack()
-      ) : user.tipoUsuario === 'dogwalker' ? (
-        DogWalkerAppStack()
+        AuthStack() // Se não há usuário logado, carrega o Login/Registro
+      ) : user.tipoUsuario === 'CLIENTE' ? (
+        ClientAppStack() // Se for Cliente, carrega as telas de Cliente
+      ) : user.tipoUsuario === 'DOGWALKER' ? (
+        DogWalkerAppStack() // Se for Dog Walker, carrega as telas de Dog Walker
       ) : (
-        AuthStack() 
+        AuthStack() // Fallback: se o tipoUsuario não for reconhecido, volta para o Login
       )}
     </Stack.Navigator>
   );

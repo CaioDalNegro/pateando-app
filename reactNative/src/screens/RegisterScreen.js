@@ -1,4 +1,3 @@
-// src/screens/RegisterScreen.js
 import React, { useState } from "react";
 import {
   Alert,
@@ -14,18 +13,30 @@ import InputField from "../components/InputField";
 import api from "../services/api";
 import { COLORS } from "../theme/colors";
 
+
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("cliente");
+  const [role, setRole] = useState("cliente"); // Padrão: cliente
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const handleCreateAccount = async () => {
+    // 👇 CORREÇÃO: VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS (Resolve Erro 400)
+    if (!name || !email || !phone || !password || !confirmPassword) {
+      Alert.alert("Erro de Validação", "Todos os campos (Nome, Telefone, Email e Senhas) são obrigatórios.");
+      return;
+    }
+    
+    // 1. Validação de Senha 
+    if (password.length < 6) {
+      Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
     if (password !== confirmPassword) {
       Alert.alert("Erro", "As senhas não coincidem!");
       return;
@@ -40,17 +51,31 @@ export default function RegisterScreen({ navigation }) {
         telefone: phone,
         email: email,
         senha: password,
-        tipoUsuario: role,
+        tipoUsuario: role.toUpperCase(), 
       });
 
-      Alert.alert("Sucesso", "Usuário criado com sucesso!");
+      Alert.alert("Sucesso", "Usuário criado com sucesso! Faça login para continuar.");
       navigation.navigate("Login");
+
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message ||
-        "Não foi possível criar a conta. Tente novamente.";
+      // 2. Tratamento de Erro Robusto
+      let errorMessage = "Ocorreu um erro desconhecido. Tente novamente.";
+      
+      if (err.response) {
+        // Erro retornado pela API (4xx ou 5xx)
+        errorMessage = err.response.data?.message || `Erro do servidor: ${err.response.status}. Verifique se o e-mail já está em uso.`;
+      } else if (err.request) {
+        // Erro de rede (sem resposta do servidor)
+        errorMessage = "Erro de conexão. Verifique sua rede.";
+      } else {
+        // Outros erros
+        errorMessage = err.message || "Não foi possível completar a requisição.";
+      }
+
       setError(errorMessage);
-      console.error(err);
+      console.error("Erro no cadastro:", err);
+      Alert.alert("Falha no Cadastro", errorMessage);
+
     } finally {
       setIsLoading(false);
     }
@@ -83,14 +108,14 @@ export default function RegisterScreen({ navigation }) {
         />
         <InputField
           iconName="lock-closed-outline"
-          placeholder="Digite sua senha"
+          placeholder="Digite sua senha (mín. 6 caracteres)"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
         <InputField
           iconName="lock-closed-outline"
-          placeholder="Digite sua senha novamente"
+          placeholder="Confirme sua senha"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry

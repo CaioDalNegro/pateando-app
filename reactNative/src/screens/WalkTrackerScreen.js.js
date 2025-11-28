@@ -17,6 +17,28 @@ const initialRegion = {
   longitudeDelta: LONGITUDE_DELTA,
 };
 
+// Constantes da simulação
+const STEP_INTERVAL_MS = 2000; // 2 segundos por passo
+const ESTIMATED_SPEED_KMH = 4; // Velocidade de caminhada estimada (4 km/h)
+const TIME_PER_STEP_S = STEP_INTERVAL_MS / 1000;
+
+/**
+ * Funções auxiliares de cálculo (simplificadas para o mapa)
+ */
+const toRad = (value) => (value * Math.PI) / 180;
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Raio da Terra em km
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distância em km
+};
+
+
 /**
  * Gera um "passeio aleatório" de coordenadas
  */
@@ -24,17 +46,24 @@ const generateRandomWalk = (startLat, startLon, steps = 60, stepDistance = 0.001
   const path = [{ latitude: startLat, longitude: startLon }];
   let currentLat = startLat;
   let currentLon = startLon;
+  let totalDistance = 0;
 
   for (let i = 1; i < steps; i++) {
     const latChange = (Math.random() - 0.5) * stepDistance * 2;
     const lonChange = (Math.random() - 0.5) * stepDistance * 2;
+    
+    const newLat = currentLat + latChange;
+    const newLon = currentLon + lonChange;
 
-    currentLat += latChange;
-    currentLon += lonChange;
+    // Calcula a distância do último passo (para estimar o total)
+    totalDistance += calculateDistance(currentLat, currentLon, newLat, newLon);
+
+    currentLat = newLat;
+    currentLon = newLon;
 
     path.push({ latitude: currentLat, longitude: currentLon });
   }
-  return path;
+  return { path, totalDistance };
 };
 
 // Hook customizado para gerir a simulação
@@ -42,36 +71,71 @@ const useWalkSimulation = () => {
   const [currentCoord, setCurrentCoord] = useState(null);
   const [pathToShow, setPathToShow] = useState([]);
   const [fullPath, setFullPath] = useState([]);
+  
+  // NOVO: Estado para rastrear dados do passeio
+  const [walkStats, setWalkStats] = useState({
+    timeElapsed: 0, // em segundos
+    distanceCovered: 0, // em km
+    isFinished: false,
+  });
+  
   const index = useRef(0);
   const interval = useRef(null);
+  const fullPathDetails = useRef({ path: [], totalDistance: 0 });
 
   useEffect(() => {
     // Gera um trajeto aleatório com range maior
-    const newPath = generateRandomWalk(initialRegion.latitude, initialRegion.longitude, 60, 0.0012);
-    setFullPath(newPath); 
-    setCurrentCoord(newPath[0]); 
+    const details = generateRandomWalk(initialRegion.latitude, initialRegion.longitude, 60, 0.0012);
+    fullPathDetails.current = details;
+    
+    setFullPath(details.path); 
+    setCurrentCoord(details.path[0]); 
 
     // Inicia a simulação
     interval.current = setInterval(() => {
-      if (index.current < newPath.length - 1) {
-        index.current += 1;
-        setCurrentCoord(newPath[index.current]);
-        setPathToShow(newPath.slice(0, index.current + 1));
+      index.current += 1;
+      
+      if (index.current < details.path.length) {
+        const newCoord = details.path[index.current];
+        const prevCoord = details.path[index.current - 1];
+        
+        // Calcula a distância percorrida no último passo
+        const stepDistance = calculateDistance(prevCoord.latitude, prevCoord.longitude, newCoord.latitude, newCoord.longitude);
+
+        setCurrentCoord(newCoord);
+        setPathToShow(prevPath => [...prevPath, newCoord]);
+        
+        // Atualiza as estatísticas
+        setWalkStats(prevStats => ({
+          ...prevStats,
+          timeElapsed: prevStats.timeElapsed + TIME_PER_STEP_S,
+          distanceCovered: prevStats.distanceCovered + stepDistance,
+        }));
+        
       } else {
+        // FIM DA SIMULAÇÃO
         clearInterval(interval.current);
+        setWalkStats(prevStats => ({ ...prevStats, isFinished: true }));
       }
-    }, 2000); // A cada 2 segundos
+    }, STEP_INTERVAL_MS); 
 
     return () => clearInterval(interval.current);
   }, []);
 
-  return { currentCoord, pathToShow, fullPath };
+  return { currentCoord, pathToShow, fullPath, walkStats };
+};
+
+const formatTime = (totalSeconds) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    return `${minutes} min ${seconds} seg`;
 };
 
 export default function WalkTrackerScreen({ navigation }) {
   const mapRef = useRef(null);
   
-  const { currentCoord, pathToShow, fullPath } = useWalkSimulation();
+  // NOVO: Puxando o walkStats do hook
+  const { currentCoord, pathToShow, fullPath, walkStats } = useWalkSimulation();
 
   useEffect(() => {
     // Anima a câmera do mapa para seguir o pino
@@ -83,6 +147,10 @@ export default function WalkTrackerScreen({ navigation }) {
       }, 1000);
     }
   }, [currentCoord]);
+
+  // Define a cor do status do passeio
+  const statusColor = walkStats.isFinished ? '#2ECC71' : COLORS.textPrimary;
+  const statusText = walkStats.isFinished ? 'Passeio Finalizado!' : 'Passeio em andamento...';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -125,6 +193,14 @@ export default function WalkTrackerScreen({ navigation }) {
                 </View>
               </Marker.Animated>
             )}
+            {/* Pino de Chegada (Aparece apenas quando finalizado) */}
+            {walkStats.isFinished && fullPath.length > 0 && (
+                 <Marker
+                   coordinate={fullPath[fullPath.length - 1]}
+                   title="Ponto de Chegada"
+                   pinColor="#D32F2F" // Vermelho
+                 />
+            )}
           </>
         )}
       </MapView>
@@ -144,16 +220,19 @@ export default function WalkTrackerScreen({ navigation }) {
           <View style={styles.walkerImage} />
           <View>
             <Text style={styles.walkerName}>[Nome do Dogwalker]</Text>
-            <Text style={styles.walkerStatus}>Passeio em andamento...</Text>
+            {/* NOVO: Status dinâmico */}
+            <Text style={[styles.walkerStatus, { color: statusColor }]}>{statusText}</Text>
           </View>
         </View>
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>15 min</Text>
+            {/* NOVO: Valor de tempo dinâmico */}
+            <Text style={styles.statValue}>{formatTime(walkStats.timeElapsed)}</Text>
             <Text style={styles.statLabel}>Tempo</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statValue}>0.8 km</Text>
+            {/* NOVO: Valor de distância dinâmico */}
+            <Text style={styles.statValue}>{walkStats.distanceCovered.toFixed(2)} km</Text>
             <Text style={styles.statLabel}>Distância</Text>
           </View>
         </View>
@@ -164,8 +243,10 @@ export default function WalkTrackerScreen({ navigation }) {
           <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="call-outline" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.stopButton}>
-            <Text style={styles.stopButtonText}>Parada de Emergência</Text>
+          <TouchableOpacity style={styles.stopButton} disabled={walkStats.isFinished}>
+            <Text style={styles.stopButtonText}>
+              {walkStats.isFinished ? 'Passeio Concluído' : 'Parada de Emergência'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -240,6 +321,7 @@ const styles = StyleSheet.create({
   walkerStatus: {
     fontSize: 14,
     color: COLORS.textSecondary,
+    fontWeight: '600'
   },
   statsContainer: {
     flexDirection: 'row',

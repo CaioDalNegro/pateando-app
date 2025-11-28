@@ -1,4 +1,3 @@
-// src/screens/LoginScreen.js
 import React, { useState, useContext } from "react";
 import {
   View,
@@ -28,12 +27,31 @@ export default function LoginScreen({ navigation }) {
   const [error, setError] = useState(null);
 
   const handleLogin = async () => {
+    // Validação básica
+    if (!email || !password) {
+        setError("Por favor, preencha o email e a senha.");
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
-      await login(email, password, selectedRole); 
+      // Chamar login apenas com email e password (conforme a correção do AuthContext)
+      await login(email, password); 
     } catch (err) {
-      setError("Email ou senha inválidos!");
+      // Tratamento de erro robusto que captura o erro lançado pelo AuthContext
+      let errorMessage = "Ocorreu um erro ao tentar logar.";
+
+      if (err.response && err.response.status === 401) {
+          // Se o AuthContext lançou o erro 401 (Senha Incorreta)
+          errorMessage = "Email ou senha inválidos. Tente novamente.";
+      } else if (err.message) {
+          // Outros erros (rede, servidor)
+          errorMessage = err.message;
+      }
+      
+      console.error("Erro no login:", err);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
