@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Switch, 
-  LayoutAnimation, UIManager, Platform, Alert 
+  LayoutAnimation, UIManager, Platform, Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
 import { Calendar, CalendarList, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { COLORS } from '../theme/colors';
 import AgendaItem from '../components/AgendaItem';
 import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -16,19 +17,20 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 
-// Dados de agendamento mockados com um novo campo 'status'
-const allAppointments = {
-  [getTodayDate()]: [
-    { id: '1', petName: 'Rex', time: '09:00 - 10:00', price: 35.00, status: 'active' }, 
-    { id: '2', petName: 'Luna', time: '14:00 - 15:00', price: 35.00, status: 'scheduled' },
-  ],
-  '2025-10-06': [{ id: '3', petName: 'Bolinha', time: '14:00 - 16:00', price: 50.00, status: 'scheduled' }],
-  '2025-10-08': [{ id: '4', petName: 'Max', time: '15:00 - 15:30', price: 25.00, status: 'scheduled' }],
-};
-
 LocaleConfig.locales['pt-br'] = {
-  monthNames: ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
-  dayNamesShort: ['D','S','T','Q','Q','S','S'],
+  monthNames: [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ],
+  monthNamesShort: [
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+  ],
+  dayNames: [
+    'Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'
+  ],
+  dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+  today: 'Hoje'
 };
 LocaleConfig.defaultLocale = 'pt-br';
 
@@ -39,24 +41,123 @@ const getGreeting = () => {
   return "Boa noite,";
 };
 
+// Função para formatar data do agendamento para string de data (YYYY-MM-DD)
+const formatDateToString = (dateTimeStr) => {
+  if (!dateTimeStr) return null;
+  const date = new Date(dateTimeStr);
+  return date.toISOString().split('T')[0];
+};
+
+// Função para formatar horário
+const formatTime = (dateTimeStr, duracao) => {
+  if (!dateTimeStr) return '';
+  const date = new Date(dateTimeStr);
+  const startHour = date.getHours().toString().padStart(2, '0');
+  const startMin = date.getMinutes().toString().padStart(2, '0');
+  
+  const endDate = new Date(date.getTime() + duracao * 60000);
+  const endHour = endDate.getHours().toString().padStart(2, '0');
+  const endMin = endDate.getMinutes().toString().padStart(2, '0');
+  
+  return `${startHour}:${startMin} - ${endHour}:${endMin}`;
+};
+
+// Função para calcular preço baseado na duração
+const calculatePrice = (duracao) => {
+  if (duracao <= 30) return 25.00;
+  if (duracao <= 60) return 40.00;
+  return 55.00;
+};
+
 export default function DogWalkerHomeScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [isMonthView, setIsMonthView] = useState(false);
   const [availabilityStatus, setAvailabilityStatus] = useState('available');
+  
+  // Estados para dados da API
+  const [allAppointments, setAllAppointments] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Buscar agendamentos do dogwalker
+  const fetchAppointments = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await api.get(`/agendamentos/dogwalker/usuario/${user.id}`);
+      const agendamentos = response.data;
+      
+      // Organizar agendamentos por data
+      const appointmentsByDate = {};
+      agendamentos.forEach(ag => {
+        const dateStr = formatDateToString(ag.dataHora);
+        if (!dateStr) return;
+        
+        if (!appointmentsByDate[dateStr]) {
+          appointmentsByDate[dateStr] = [];
+        }
+        
+        // Mapear status do backend para o formato do frontend
+        let frontendStatus = 'scheduled';
+        if (ag.status === 'EM_ANDAMENTO') frontendStatus = 'active';
+        else if (ag.status === 'CONCLUIDO') frontendStatus = 'completed';
+        else if (ag.status === 'PENDENTE') frontendStatus = 'pending';
+        else if (ag.status === 'ACEITO') frontendStatus = 'scheduled';
+        else if (ag.status === 'REJEITADO' || ag.status === 'CANCELADO') frontendStatus = 'cancelled';
+        
+        appointmentsByDate[dateStr].push({
+          id: ag.id.toString(),
+          petName: ag.pet?.nome || 'Pet',
+          clientName: ag.cliente?.nome || 'Cliente',
+          time: formatTime(ag.dataHora, ag.duracao),
+          price: calculatePrice(ag.duracao),
+          status: frontendStatus,
+          backendStatus: ag.status,
+          duracao: ag.duracao,
+          observacoes: ag.observacoes,
+        });
+      });
+      
+      setAllAppointments(appointmentsByDate);
+    } catch (error) {
+      console.error('Erro ao buscar agendamentos:', error);
+      // Se for 404, significa que não há dogwalker cadastrado para este usuário
+      if (error.response?.status === 400 || error.response?.status === 404) {
+        setAllAppointments({});
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
+
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const appointmentsForDay = useMemo(() => {
     const appointments = allAppointments[selectedDate] || [];
     return appointments.sort((a, b) => parseInt(a.time.split(':')[0]) - parseInt(b.time.split(':')[0]));
-  }, [selectedDate]);
+  }, [selectedDate, allAppointments]);
 
   const daySummary = useMemo(() => {
-    const totalAppointments = appointmentsForDay.length;
-    const totalEarnings = appointmentsForDay.reduce((sum, app) => sum + app.price, 0);
+    const totalAppointments = appointmentsForDay.filter(a => a.status !== 'cancelled').length;
+    const totalEarnings = appointmentsForDay
+      .filter(a => a.status !== 'cancelled')
+      .reduce((sum, app) => sum + app.price, 0);
     return { totalAppointments, totalEarnings };
   }, [appointmentsForDay]);
   
-  const nextAppointmentId = useMemo(() => { /* ...lógica para achar o próximo... */ return null; });
+  const nextAppointmentId = useMemo(() => {
+    const activeOrScheduled = appointmentsForDay.filter(a => a.status === 'active' || a.status === 'scheduled');
+    return activeOrScheduled.length > 0 ? activeOrScheduled[0].id : null;
+  }, [appointmentsForDay]);
 
   useEffect(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -71,30 +172,127 @@ export default function DogWalkerHomeScreen({ navigation }) {
     setSelectedDate(day.dateString);
   };
 
-  const handleStatusChange = (status) => {
+  const handleStatusChange = async (status) => {
     triggerHaptic();
     setAvailabilityStatus(status);
+    
+    // Atualizar disponibilidade no backend
+    try {
+      await api.put(`/dogwalkers/usuario/${user.id}/disponibilidade`, {
+        disponibilidade: status === 'available' ? 'DISPONIVEL' : 'INDISPONIVEL'
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar disponibilidade:', error);
+    }
   };
 
-  // 💥 NOVA FUNÇÃO: Navega para a tela de finalização de passeio
+  // Aceitar agendamento pendente
+  const handleAcceptAppointment = async (appointmentId) => {
+    try {
+      await api.put(`/agendamentos/${appointmentId}/aceitar`, {
+        dogwalkerUsuarioId: user.id
+      });
+      Alert.alert('Sucesso!', 'Agendamento aceito com sucesso!');
+      fetchAppointments();
+    } catch (error) {
+      console.error('Erro ao aceitar agendamento:', error);
+      Alert.alert('Erro', error.response?.data || 'Não foi possível aceitar o agendamento.');
+    }
+  };
+
+  // Rejeitar agendamento pendente
+  const handleRejectAppointment = async (appointmentId) => {
+    Alert.alert(
+      'Confirmar',
+      'Tem certeza que deseja rejeitar este agendamento?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Rejeitar', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.put(`/agendamentos/${appointmentId}/rejeitar`, {
+                dogwalkerUsuarioId: user.id
+              });
+              Alert.alert('OK', 'Agendamento rejeitado.');
+              fetchAppointments();
+            } catch (error) {
+              console.error('Erro ao rejeitar agendamento:', error);
+              Alert.alert('Erro', error.response?.data || 'Não foi possível rejeitar o agendamento.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Iniciar passeio
+  const handleStartWalk = async (appointmentId) => {
+    try {
+      await api.put(`/agendamentos/${appointmentId}/iniciar`, {
+        dogwalkerUsuarioId: user.id
+      });
+      Alert.alert('Passeio Iniciado! 🐕', 'Bom passeio!');
+      fetchAppointments();
+    } catch (error) {
+      console.error('Erro ao iniciar passeio:', error);
+      Alert.alert('Erro', error.response?.data || 'Não foi possível iniciar o passeio.');
+    }
+  };
+
+  // Navega para a tela de finalização de passeio
   const handleFinishWalk = (appointment) => {
     const mockWalkData = {
-        petName: appointment.petName,
-        duration: '45 minutos', // Mockado para simular o tempo real
-        distance: '2.1 km', // Mockado para simular a distância real
-        dogwalkerName: user?.nome || 'Dogwalker'
+      appointmentId: appointment.id,
+      petName: appointment.petName,
+      duration: `${appointment.duracao} minutos`,
+      distance: '2.1 km',
+      dogwalkerName: user?.nome || 'Dogwalker'
     };
-    // Navega para a tela FinishWalk passando os dados
     navigation.navigate('FinishWalk', { walkData: mockWalkData });
   };
 
+  // Marcar datas com agendamentos no calendário
+  const markedDates = useMemo(() => {
+    const marks = {};
+    Object.keys(allAppointments).forEach(date => {
+      if (allAppointments[date].length > 0) {
+        marks[date] = { marked: true, dotColor: COLORS.primary };
+      }
+    });
+    marks[selectedDate] = { 
+      ...marks[selectedDate], 
+      selected: true, 
+      selectedColor: COLORS.primary 
+    };
+    return marks;
+  }, [selectedDate, allAppointments]);
 
-  const markedDates = useMemo(() => ({ /* ... */ }), [selectedDate]);
-  const calendarProps = { current: selectedDate, onDayPress: handleDayPress, markedDates, theme: calendarTheme };
+  const calendarProps = { 
+    current: selectedDate, 
+    onDayPress: handleDayPress, 
+    markedDates, 
+    theme: calendarTheme 
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Carregando agenda...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+        }
         ListHeaderComponent={
           <>
             <View style={styles.header}>
@@ -143,7 +341,36 @@ export default function DogWalkerHomeScreen({ navigation }) {
             <View style={styles.agendaItemWrapper}>
                 <AgendaItem appointment={item} isNext={item.id === nextAppointmentId} />
                 
-                {/* 👇 NOVO: BOTÃO DE FINALIZAR SÓ APARECE PARA PASSEIOS ATIVOS */}
+                {/* Botões de ação baseado no status */}
+                {item.status === 'pending' && (
+                  <View style={styles.actionButtonsRow}>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.acceptButton]} 
+                      onPress={() => handleAcceptAppointment(item.id)}
+                    >
+                      <Ionicons name="checkmark" size={20} color={COLORS.white} />
+                      <Text style={styles.actionButtonText}>Aceitar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.actionButton, styles.rejectButton]} 
+                      onPress={() => handleRejectAppointment(item.id)}
+                    >
+                      <Ionicons name="close" size={20} color={COLORS.white} />
+                      <Text style={styles.actionButtonText}>Rejeitar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {item.status === 'scheduled' && (
+                  <TouchableOpacity 
+                    style={styles.startWalkButton} 
+                    onPress={() => handleStartWalk(item.id)}
+                  >
+                    <Text style={styles.startWalkButtonText}>Iniciar Passeio</Text>
+                    <Ionicons name="play-circle-outline" size={20} color={COLORS.white} />
+                  </TouchableOpacity>
+                )}
+                
                 {item.status === 'active' && (
                     <TouchableOpacity style={styles.finishButton} onPress={() => handleFinishWalk(item)}>
                         <Text style={styles.finishButtonText}>Finalizar Passeio</Text>
@@ -155,8 +382,9 @@ export default function DogWalkerHomeScreen({ navigation }) {
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
             <View style={styles.emptyContainer}>
-                <Ionicons name="sad-outline" size={30} color={COLORS.textSecondary} />
+                <Ionicons name="calendar-outline" size={40} color={COLORS.textSecondary} />
                 <Text style={styles.emptyText}>Sem agendamentos neste dia.</Text>
+                <Text style={styles.emptySubtext}>Puxe para baixo para atualizar</Text>
             </View>
         }
       />
@@ -276,6 +504,61 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 10,
   },
+  emptySubtext: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  rejectButton: {
+    backgroundColor: '#F44336',
+  },
+  actionButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  startWalkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    gap: 8,
+  },
+  startWalkButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   // NOVOS ESTILOS PARA O BOTÃO DE FINALIZAR
   finishButton: {
     flexDirection: 'row',
@@ -297,4 +580,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-}); 
+});

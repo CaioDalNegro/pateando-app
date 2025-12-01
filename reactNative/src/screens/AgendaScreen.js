@@ -9,6 +9,7 @@ import * as Location from 'expo-location';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { COLORS } from '../theme/colors';
 import { AuthContext } from '../context/AuthContext'; 
+import api from '../services/api';
 
 // Importa o MapView apenas se NÃO for web, usando lazy loading
 const MapView = Platform.OS === 'web' ? null : lazy(() => import('react-native-maps'));
@@ -17,22 +18,26 @@ const { width, height } = Dimensions.get('window');
 
 // Configuração do Calendário para Português
 LocaleConfig.locales['pt-br'] = {
-  monthNames: ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
-  dayNamesShort: ['D','S','T','Q','Q','S','S'],
+  monthNames: [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ],
+  monthNamesShort: [
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+  ],
+  dayNames: [
+    'Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'
+  ],
+  dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
   today: 'Hoje'
 };
 LocaleConfig.defaultLocale = 'pt-br';
 
-// Dados de exemplo
-const userPets = [
-  { id: 'p1', name: 'Bolinha', imageUri: 'https://i.pinimg.com/736x/a7/d7/7b/a7d77b1923945a2a2b9758b09f5b6b1b.jpg' },
-  { id: 'p2', name: 'Rex', imageUri: 'https://placehold.co/60x60/FFEBD0/FF7A2D?text=Pet' }, 
-];
-
 const basicPlanDurations = [
-  { id: 'd1', duration: '30 min', price: 'R$ 25' },
-  { id: 'd2', duration: '60 min', price: 'R$ 40' },
-  { id: 'd3', duration: '90 min', price: 'R$ 55' },
+  { id: 'd1', duration: '30 min', minutes: 30, price: 'R$ 25' },
+  { id: 'd2', duration: '60 min', minutes: 60, price: 'R$ 40' },
+  { id: 'd3', duration: '90 min', minutes: 90, price: 'R$ 55' },
 ];
 
 const availableTimeSlots = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'];
@@ -42,10 +47,39 @@ const getTodayDateString = () => new Date().toISOString().split('T')[0];
 export default function AgendaScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const [location, setLocation] = useState(null);
-  const [selectedPetId, setSelectedPetId] = useState(userPets[0]?.id); 
+  
+  // Estados para pets
+  const [userPets, setUserPets] = useState([]);
+  const [isLoadingPets, setIsLoadingPets] = useState(true);
+  
+  const [selectedPetId, setSelectedPetId] = useState(null); 
   const [selectedDurationId, setSelectedDurationId] = useState(basicPlanDurations[0]?.id);
   const [selectedDate, setSelectedDate] = useState(getTodayDateString());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(availableTimeSlots[0]);
+
+  // Buscar pets do usuário
+  useEffect(() => {
+    fetchUserPets();
+  }, [user]);
+
+  const fetchUserPets = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsLoadingPets(true);
+      const response = await api.get(`/pets/user/${user.id}`);
+      setUserPets(response.data);
+      // Selecionar o primeiro pet por padrão
+      if (response.data.length > 0) {
+        setSelectedPetId(response.data[0].id);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar pets:', error);
+      Alert.alert('Erro', 'Não foi possível carregar seus pets.');
+    } finally {
+      setIsLoadingPets(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -86,7 +120,15 @@ export default function AgendaScreen({ navigation }) {
   }, []);
 
   const handleContinue = () => {
-    if (!selectedPetId) { Alert.alert("Selecione um Pet", "Por favor, escolha qual pet irá passear."); return; }
+    if (!selectedPetId) { 
+      Alert.alert("Selecione um Pet", "Por favor, escolha qual pet irá passear."); 
+      return; 
+    }
+    
+    // Buscar o pet selecionado
+    const selectedPet = userPets.find(p => p.id === selectedPetId);
+    // Buscar a duração selecionada
+    const selectedDuration = basicPlanDurations.find(d => d.id === selectedDurationId);
     
     // Combina a data e a hora antes de enviar
     const [year, month, day] = selectedDate.split('-');
@@ -94,10 +136,13 @@ export default function AgendaScreen({ navigation }) {
     const finalDateTime = new Date(year, month - 1, day, hour, minute);
 
     navigation.navigate('SelectDogWalker', { 
-        petId: selectedPetId, 
-        durationId: selectedDurationId,
-        dateTime: finalDateTime.toISOString(), // Envia a data completa
-     });
+      petId: selectedPetId, 
+      petName: selectedPet?.nome || 'Pet',
+      durationId: selectedDurationId,
+      durationMinutes: selectedDuration?.minutes || 30,
+      price: selectedDuration?.price || 'R$ 25',
+      dateTime: finalDateTime.toISOString(),
+    });
   };
 
   return (
@@ -140,22 +185,42 @@ export default function AgendaScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
           <Text style={styles.sectionTitle}>1. Qual pet vai passear?</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petSelector}>
-            {userPets.map(pet => (
+          {isLoadingPets ? (
+            <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />
+          ) : userPets.length === 0 ? (
+            <View style={styles.noPetsContainer}>
+              <Text style={styles.noPetsText}>Você ainda não tem pets cadastrados.</Text>
               <TouchableOpacity 
-                key={pet.id} 
-                style={[styles.petCard, selectedPetId === pet.id && styles.petCardSelected]}
-                onPress={() => setSelectedPetId(pet.id)}
+                style={styles.addFirstPetButton} 
+                onPress={() => navigation.navigate('RegisterPetClient')}
               >
-                <Image source={{ uri: pet.imageUri }} style={styles.petImage} />
-                <Text style={[styles.petName, selectedPetId === pet.id && styles.petNameSelected]}>{pet.name}</Text>
+                <Ionicons name="add-circle" size={24} color={COLORS.white} />
+                <Text style={styles.addFirstPetText}>Cadastrar meu primeiro pet</Text>
               </TouchableOpacity>
-            ))}
-             <TouchableOpacity style={styles.addPetCard} onPress={() => navigation.navigate('RegisterPetClient')}>
-                 <Ionicons name="add" size={24} color={COLORS.primary} />
-                 <Text style={styles.addPetText}>Adicionar</Text>
-             </TouchableOpacity>
-          </ScrollView>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petSelector}>
+              {userPets.map(pet => (
+                <TouchableOpacity 
+                  key={pet.id} 
+                  style={[styles.petCard, selectedPetId === pet.id && styles.petCardSelected]}
+                  onPress={() => setSelectedPetId(pet.id)}
+                >
+                  <Image 
+                    source={{ uri: pet.fotoUrl || 'https://via.placeholder.com/60/FFEBD0/FF7A2D?text=Pet' }} 
+                    style={styles.petImage} 
+                  />
+                  <Text style={[styles.petName, selectedPetId === pet.id && styles.petNameSelected]}>
+                    {pet.nome}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={styles.addPetCard} onPress={() => navigation.navigate('RegisterPetClient')}>
+                <Ionicons name="add" size={24} color={COLORS.primary} />
+                <Text style={styles.addPetText}>Adicionar</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
 
           <Text style={styles.sectionTitle}>2. Escolha a duração</Text>
           <View style={styles.durationContainer}>
@@ -213,7 +278,11 @@ export default function AgendaScreen({ navigation }) {
         
         {/* Botão de Continuar Fixo */}
         <View style={styles.continueButtonContainer}>
-          <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+          <TouchableOpacity 
+            style={[styles.continueButton, userPets.length === 0 && styles.continueButtonDisabled]} 
+            onPress={handleContinue}
+            disabled={userPets.length === 0}
+          >
             <Text style={styles.continueButtonText}>Continuar</Text>
           </TouchableOpacity>
         </View>
@@ -386,9 +455,37 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  continueButtonDisabled: {
+    backgroundColor: COLORS.textSecondary,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   continueButtonText: {
     color: COLORS.white,
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  noPetsContainer: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  noPetsText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginBottom: 16,
+  },
+  addFirstPetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  addFirstPetText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });

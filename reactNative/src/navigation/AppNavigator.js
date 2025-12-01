@@ -12,6 +12,8 @@ import MyPetsScreen from '../screens/MyPetsScreen';
 import RegisterPetClientScreen from '../screens/RegisterPetClientScreen';
 import WalkTrackerScreen from '../screens/WalkTrackerScreen.js'; 
 import FinishWalkScreen from '../screens/FinishWalkScreen';
+import AgendaScreen from '../screens/AgendaScreen';
+import SelectDogWalkerScreen from '../screens/SelectDogwalkerScreen';
 
 const Stack = createStackNavigator();
 
@@ -22,7 +24,6 @@ const AuthStack = () => (
   <>
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Register" component={RegisterScreen} />
-    {/* Adicione outras telas de registro, como RegisterDogWalker, aqui se necessário */}
   </>
 );
 
@@ -34,9 +35,9 @@ const ClientAppStack = () => (
     <Stack.Screen name="InicialClient" component={InicialClientScreen} />
     <Stack.Screen name="MyPets" component={MyPetsScreen} />
     <Stack.Screen name="RegisterPetClient" component={RegisterPetClientScreen} />
-    {/* ROTA PARA O MAPA DE ACOMPANHAMENTO */}
+    <Stack.Screen name="Agenda" component={AgendaScreen} />
+    <Stack.Screen name="SelectDogWalker" component={SelectDogWalkerScreen} />
     <Stack.Screen name="WalkTracker" component={WalkTrackerScreen} />
-    {/* Adicione a tela de Agendamento aqui: <Stack.Screen name="Agenda" component={AgendaScreen} /> */}
   </>
 );
 
@@ -46,7 +47,6 @@ const ClientAppStack = () => (
 const DogWalkerAppStack = () => (
   <>
     <Stack.Screen name="DogWalkerHome" component={DogWalkerHomeScreen} />
-    {/* 👇 NOVO: ROTA PARA FINALIZAR O PASSEIO */}
     <Stack.Screen name="FinishWalk" component={FinishWalkScreen} />
   </>
 );
