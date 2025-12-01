@@ -110,18 +110,6 @@ export default function LoginScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
-        <View style={styles.divider}>
-          <View style={styles.line} />
-          <Text style={styles.dividerText}>Ou entre com</Text>
-          <View style={styles.line} />
-        </View>
-
-        <View style={styles.socialContainer}>
-          <SocialButton type="google" onPress={() => {}} />
-          <SocialButton type="facebook" onPress={() => {}} />
-          <SocialButton type="apple" onPress={() => {}} />
-        </View>
-
         <Text style={styles.footer}>
           Ainda não tem uma conta?{" "}
           <Text
