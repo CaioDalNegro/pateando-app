@@ -6,7 +6,9 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import br.com.pateandoapp.pateandobackend.model.Dogwalker;
 import br.com.pateandoapp.pateandobackend.model.Usuario;
+import br.com.pateandoapp.pateandobackend.repository.DogwalkerRepository;
 import br.com.pateandoapp.pateandobackend.repository.UsuarioRepository;
 
 @Service
@@ -14,6 +16,9 @@ public class UsuarioService {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private DogwalkerRepository dogwalkerRepository;
 
     // Criar Usuario
     public Usuario createUser(Usuario usuario) {
@@ -27,7 +32,23 @@ public class UsuarioService {
             throw new RuntimeException("Telefone já cadastrado!");
         }
 
-        return usuarioRepository.save(usuario);
+        // Salvar o usuário
+        Usuario savedUser = usuarioRepository.save(usuario);
+
+        // Se for DOGWALKER, criar automaticamente o registro na tabela dogwalkers
+        if ("DOGWALKER".equalsIgnoreCase(usuario.getTipo())) {
+            Dogwalker dogwalker = new Dogwalker();
+            dogwalker.setUsuario(savedUser);
+            dogwalker.setDisponibilidade("DISPONIVEL");
+            dogwalker.setPreco30min(25.0);
+            dogwalker.setPreco60min(40.0);
+            dogwalker.setPreco90min(55.0);
+            dogwalker.setAvaliacaoMedia(5.0);
+            dogwalker.setTotalPasseios(0);
+            dogwalkerRepository.save(dogwalker);
+        }
+
+        return savedUser;
     }
 
     // Buscar todos os Usuarios
@@ -51,6 +72,28 @@ public class UsuarioService {
     }
 
     public Optional<Usuario> login(String email, String senha) {
-        return usuarioRepository.findByEmailAndSenha(email, senha);
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmailAndSenha(email, senha);
+        
+        // Se o login for bem-sucedido e for um DOGWALKER, garantir que existe o registro
+        if (usuarioOpt.isPresent()) {
+            Usuario usuario = usuarioOpt.get();
+            if ("DOGWALKER".equalsIgnoreCase(usuario.getTipo())) {
+                // Verificar se já existe registro de dogwalker
+                if (dogwalkerRepository.findByUsuarioId(usuario.getId()).isEmpty()) {
+                    // Criar registro de dogwalker se não existir
+                    Dogwalker dogwalker = new Dogwalker();
+                    dogwalker.setUsuario(usuario);
+                    dogwalker.setDisponibilidade("DISPONIVEL");
+                    dogwalker.setPreco30min(25.0);
+                    dogwalker.setPreco60min(40.0);
+                    dogwalker.setPreco90min(55.0);
+                    dogwalker.setAvaliacaoMedia(5.0);
+                    dogwalker.setTotalPasseios(0);
+                    dogwalkerRepository.save(dogwalker);
+                }
+            }
+        }
+        
+        return usuarioOpt;
     }
 }

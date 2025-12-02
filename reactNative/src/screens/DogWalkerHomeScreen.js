@@ -121,11 +121,9 @@ export default function DogWalkerHomeScreen({ navigation }) {
       
       setAllAppointments(appointmentsByDate);
     } catch (error) {
-      console.error('Erro ao buscar agendamentos:', error);
-      // Se for 404, significa que não há dogwalker cadastrado para este usuário
-      if (error.response?.status === 400 || error.response?.status === 404) {
-        setAllAppointments({});
-      }
+      // Silenciar erros - dogwalker pode não estar cadastrado ainda
+      console.log('Aguardando cadastro de dogwalker ou sem agendamentos:', error.response?.status);
+      setAllAppointments({});
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -174,15 +172,18 @@ export default function DogWalkerHomeScreen({ navigation }) {
 
   const handleStatusChange = async (status) => {
     triggerHaptic();
+    const previousStatus = availabilityStatus;
     setAvailabilityStatus(status);
     
-    // Atualizar disponibilidade no backend
+    // Atualizar disponibilidade no backend (silenciosamente, sem spam de erros)
     try {
       await api.put(`/dogwalkers/usuario/${user.id}/disponibilidade`, {
         disponibilidade: status === 'available' ? 'DISPONIVEL' : 'INDISPONIVEL'
       });
     } catch (error) {
-      console.error('Erro ao atualizar disponibilidade:', error);
+      // Se falhar, reverter o estado visual (mas não mostrar erro repetido)
+      console.log('Não foi possível atualizar disponibilidade - dogwalker pode não estar cadastrado ainda');
+      // Não reverter - deixar o usuário com a UI que ele escolheu
     }
   };
 

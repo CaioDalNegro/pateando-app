@@ -106,9 +106,12 @@ public class AgendamentoService {
      * Lista agendamentos de um dogwalker pelo ID do usuário
      */
     public List<Agendamento> listarPorDogwalkerUsuarioId(Long usuarioId) {
-        Dogwalker dogwalker = dogwalkerRepository.findByUsuarioId(usuarioId)
-                .orElseThrow(() -> new RuntimeException("Dogwalker não encontrado para este usuário!"));
-        return agendamentoRepository.findByDogwalker(dogwalker);
+        Optional<Dogwalker> dogwalkerOpt = dogwalkerRepository.findByUsuarioId(usuarioId);
+        if (dogwalkerOpt.isEmpty()) {
+            // Retornar lista vazia se o dogwalker não existe ainda
+            return List.of();
+        }
+        return agendamentoRepository.findByDogwalker(dogwalkerOpt.get());
     }
 
     /**

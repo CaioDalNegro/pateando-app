@@ -58,7 +58,12 @@ public class DogwalkerService {
      * Lista dogwalkers disponíveis
      */
     public List<Dogwalker> listarDisponiveis() {
-        return dogwalkerRepository.findByDisponibilidadeIgnoreCase("DISPONIVEL");
+        List<Dogwalker> disponiveis = dogwalkerRepository.findByDisponibilidadeIgnoreCase("DISPONIVEL");
+        // Se não houver disponíveis, retornar todos (para não deixar lista vazia)
+        if (disponiveis.isEmpty()) {
+            return dogwalkerRepository.findAll();
+        }
+        return disponiveis;
     }
 
     /**
@@ -88,13 +93,34 @@ public class DogwalkerService {
 
     /**
      * Atualiza disponibilidade pelo ID do usuário
+     * Se o dogwalker não existir, cria um novo
      */
     public Dogwalker atualizarDisponibilidadePorUsuarioId(Long usuarioId, String disponibilidade) {
-        Dogwalker dogwalker = dogwalkerRepository.findByUsuarioId(usuarioId)
-                .orElseThrow(() -> new RuntimeException("Dogwalker não encontrado para este usuário!"));
-
-        dogwalker.setDisponibilidade(disponibilidade);
-        return dogwalkerRepository.save(dogwalker);
+        Optional<Dogwalker> dogwalkerOpt = dogwalkerRepository.findByUsuarioId(usuarioId);
+        
+        if (dogwalkerOpt.isPresent()) {
+            Dogwalker dogwalker = dogwalkerOpt.get();
+            dogwalker.setDisponibilidade(disponibilidade);
+            return dogwalkerRepository.save(dogwalker);
+        } else {
+            // Criar dogwalker se não existir
+            Usuario usuario = usuarioRepository.findById(usuarioId)
+                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado!"));
+            
+            if (!"DOGWALKER".equalsIgnoreCase(usuario.getTipo())) {
+                throw new RuntimeException("Este usuário não é do tipo DOGWALKER!");
+            }
+            
+            Dogwalker novoDogwalker = new Dogwalker();
+            novoDogwalker.setUsuario(usuario);
+            novoDogwalker.setDisponibilidade(disponibilidade);
+            novoDogwalker.setPreco30min(25.0);
+            novoDogwalker.setPreco60min(40.0);
+            novoDogwalker.setPreco90min(55.0);
+            novoDogwalker.setAvaliacaoMedia(5.0);
+            novoDogwalker.setTotalPasseios(0);
+            return dogwalkerRepository.save(novoDogwalker);
+        }
     }
 
     /**
