@@ -7,33 +7,27 @@ import {
   TouchableOpacity, 
   ScrollView, 
   TextInput, 
-  Alert 
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme/colors';
-
-// Dados mockados que viriam da tela de rastreamento
-const MOCK_WALK_DATA = {
-    petName: 'Bolinha',
-    petImage: 'https://placehold.co/100x100/F06292/white?text=Bolinha',
-    duration: '45 minutos',
-    distance: '2.1 km',
-    dogwalkerName: 'Walker Teste'
-};
+import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
 
 export default function FinishWalkScreen({ navigation, route }) {
-    // Usar dados da rota se disponíveis, ou mockar
-    const walkData = route.params?.walkData || MOCK_WALK_DATA; 
+    const { user } = useContext(AuthContext);
+    
+    // Dados do passeio vindos da navegação
+    const walkData = route.params?.walkData || {};
     
     const [observations, setObservations] = useState('');
-    const [photos, setPhotos] = useState([]); // Array de URLs de fotos mockadas
+    const [photos, setPhotos] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Função mockada para adicionar foto
+    // Função para adicionar foto (mockada por enquanto)
     const handleAddPhoto = () => {
-        // Na vida real, abriria a câmera/galeria.
         if (photos.length < 3) {
-            // @ts-ignore
             setPhotos(prev => [
                 ...prev, 
                 `https://placehold.co/100x100/A5D6A7/000?text=Foto%20${prev.length + 1}`
@@ -44,22 +38,52 @@ export default function FinishWalkScreen({ navigation, route }) {
     };
 
     const handleFinalize = async () => {
+        // Verificar se temos o ID do agendamento
+        if (!walkData.appointmentId) {
+            Alert.alert("Erro", "ID do agendamento não encontrado.");
+            return;
+        }
+
         setIsLoading(true);
-        // Na vida real: Envia observações, distância, duração e links das fotos para a API
-        console.log("Enviando relatório:", { 
-            ...walkData, 
-            observations, 
-            photoCount: photos.length 
-        });
 
-        // Simulação de delay da API
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsLoading(false);
+        try {
+            // Chamar a API para finalizar o passeio
+            await api.put(`/agendamentos/${walkData.appointmentId}/finalizar`, {
+                dogwalkerUsuarioId: user.id
+            });
 
-        Alert.alert("Sucesso", `Relatório de passeio de ${walkData.petName} enviado!`);
-        
-        // Retorna para a tela inicial do Dogwalker
-        navigation.navigate('DogWalkerHome');
+            console.log("Passeio finalizado com sucesso!", {
+                appointmentId: walkData.appointmentId,
+                observations,
+                photoCount: photos.length
+            });
+
+            Alert.alert(
+                "Sucesso! 🎉", 
+                `Passeio de ${walkData.petName} finalizado com sucesso!`,
+                [
+                    {
+                        text: "OK",
+                        onPress: () => navigation.navigate('DogWalkerHome')
+                    }
+                ]
+            );
+
+        } catch (error) {
+            console.error("Erro ao finalizar passeio:", error.response?.data || error.message);
+            
+            let errorMessage = "Não foi possível finalizar o passeio.";
+            
+            if (error.response?.data) {
+                errorMessage = typeof error.response.data === 'string' 
+                    ? error.response.data 
+                    : JSON.stringify(error.response.data);
+            }
+            
+            Alert.alert("Erro", errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -76,14 +100,14 @@ export default function FinishWalkScreen({ navigation, route }) {
                 {/* Pet e Estatísticas */}
                 <View style={styles.summaryCard}>
                     <Ionicons name="paw-outline" size={32} color={COLORS.primary} style={styles.pawIcon} />
-                    <Text style={styles.petName}>{walkData.petName}</Text>
+                    <Text style={styles.petName}>{walkData.petName || 'Pet'}</Text>
                     <View style={styles.statsRow}>
                         <View style={styles.statBox}>
-                            <Text style={styles.statValue}>{walkData.duration}</Text>
+                            <Text style={styles.statValue}>{walkData.duration || '-- min'}</Text>
                             <Text style={styles.statLabel}>Duração</Text>
                         </View>
                         <View style={styles.statBox}>
-                            <Text style={styles.statValue}>{walkData.distance}</Text>
+                            <Text style={styles.statValue}>{walkData.distance || '-- km'}</Text>
                             <Text style={styles.statLabel}>Distância</Text>
                         </View>
                     </View>
@@ -109,22 +133,26 @@ export default function FinishWalkScreen({ navigation, route }) {
                     multiline
                     numberOfLines={4}
                     placeholder="Adicione notas importantes sobre o comportamento do pet, necessidades especiais, ou se ele fez as necessidades."
+                    placeholderTextColor={COLORS.textSecondary}
                     value={observations}
                     onChangeText={setObservations}
                 />
 
                 <TouchableOpacity 
-                    style={styles.finalizeButton} 
+                    style={[styles.finalizeButton, isLoading && styles.finalizeButtonDisabled]} 
                     onPress={handleFinalize} 
                     disabled={isLoading}
                 >
                     {isLoading ? (
-                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <Text style={styles.finalizeButtonText}>Enviando... </Text>
-                            <Ionicons name="cloud-upload-outline" size={24} color={COLORS.white} />
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator color={COLORS.white} size="small" />
+                            <Text style={styles.finalizeButtonText}>  Finalizando...</Text>
                         </View>
                     ) : (
-                        <Text style={styles.finalizeButtonText}>Finalizar Serviço</Text>
+                        <View style={styles.loadingContainer}>
+                            <Ionicons name="checkmark-circle-outline" size={24} color={COLORS.white} />
+                            <Text style={styles.finalizeButtonText}>  Finalizar Serviço</Text>
+                        </View>
                     )}
                 </TouchableOpacity>
             </ScrollView>
@@ -246,22 +274,30 @@ const styles = StyleSheet.create({
         borderColor: COLORS.card,
     },
     finalizeButton: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: '#00C853',
         height: 55,
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 30,
         marginBottom: 10,
-        shadowColor: COLORS.primary,
+        shadowColor: '#00C853',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
         elevation: 6,
     },
+    finalizeButtonDisabled: {
+        backgroundColor: '#88E0A3',
+    },
     finalizeButtonText: {
         color: COLORS.white,
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    loadingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

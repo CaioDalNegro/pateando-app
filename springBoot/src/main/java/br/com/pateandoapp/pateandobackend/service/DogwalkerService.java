@@ -56,14 +56,19 @@ public class DogwalkerService {
 
     /**
      * Lista dogwalkers disponíveis
+     * ✅ CORRIGIDO: Retorna todos mas cada um com sua disponibilidade real
      */
     public List<Dogwalker> listarDisponiveis() {
-        List<Dogwalker> disponiveis = dogwalkerRepository.findByDisponibilidadeIgnoreCase("DISPONIVEL");
-        // Se não houver disponíveis, retornar todos (para não deixar lista vazia)
-        if (disponiveis.isEmpty()) {
-            return dogwalkerRepository.findAll();
-        }
-        return disponiveis;
+        // Retornar TODOS os dogwalkers - o frontend vai mostrar quem está disponível ou não
+        // Isso permite que o cliente veja todos os dogwalkers e seus status
+        return dogwalkerRepository.findAll();
+    }
+
+    /**
+     * Lista APENAS dogwalkers com status DISPONIVEL
+     */
+    public List<Dogwalker> listarApenasDisponiveis() {
+        return dogwalkerRepository.findByDisponibilidadeIgnoreCase("DISPONIVEL");
     }
 
     /**
