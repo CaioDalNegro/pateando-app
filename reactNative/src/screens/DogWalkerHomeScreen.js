@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Switch, 
-  LayoutAnimation, UIManager, Platform, Alert, ActivityIndicator, RefreshControl
+  View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, 
+  LayoutAnimation, UIManager, Platform, Alert, ActivityIndicator, RefreshControl,
+  StatusBar 
 } from 'react-native';
-import { Calendar, CalendarList, LocaleConfig } from 'react-native-calendars';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '../theme/colors';
@@ -41,14 +42,12 @@ const getGreeting = () => {
   return "Boa noite,";
 };
 
-// Função para formatar data do agendamento para string de data (YYYY-MM-DD)
 const formatDateToString = (dateTimeStr) => {
   if (!dateTimeStr) return null;
   const date = new Date(dateTimeStr);
   return date.toISOString().split('T')[0];
 };
 
-// Função para formatar horário
 const formatTime = (dateTimeStr, duracao) => {
   if (!dateTimeStr) return '';
   const date = new Date(dateTimeStr);
@@ -62,25 +61,32 @@ const formatTime = (dateTimeStr, duracao) => {
   return `${startHour}:${startMin} - ${endHour}:${endMin}`;
 };
 
-// Função para calcular preço baseado na duração
 const calculatePrice = (duracao) => {
   if (duracao <= 30) return 25.00;
   if (duracao <= 60) return 40.00;
   return 55.00;
 };
 
+// Função auxiliar segura para formatar a data do título
+const formatTitleDate = (dateString) => {
+  try {
+    const [year, month, day] = dateString.split('-');
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+  } catch (e) {
+    return dateString;
+  }
+};
+
 export default function DogWalkerHomeScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
-  const [isMonthView, setIsMonthView] = useState(false);
   const [availabilityStatus, setAvailabilityStatus] = useState('available');
   
-  // Estados para dados da API
   const [allAppointments, setAllAppointments] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Buscar agendamentos do dogwalker
   const fetchAppointments = useCallback(async () => {
     if (!user?.id) return;
     
@@ -88,7 +94,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
       const response = await api.get(`/agendamentos/dogwalker/usuario/${user.id}`);
       const agendamentos = response.data;
       
-      // Organizar agendamentos por data
       const appointmentsByDate = {};
       agendamentos.forEach(ag => {
         const dateStr = formatDateToString(ag.dataHora);
@@ -98,7 +103,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
           appointmentsByDate[dateStr] = [];
         }
         
-        // Mapear status do backend para o formato do frontend
         let frontendStatus = 'scheduled';
         if (ag.status === 'EM_ANDAMENTO') frontendStatus = 'active';
         else if (ag.status === 'CONCLUIDO') frontendStatus = 'completed';
@@ -121,7 +125,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
       
       setAllAppointments(appointmentsByDate);
     } catch (error) {
-      // Silenciar erros - dogwalker pode não estar cadastrado ainda
       console.log('Aguardando cadastro de dogwalker ou sem agendamentos:', error.response?.status);
       setAllAppointments({});
     } finally {
@@ -172,22 +175,17 @@ export default function DogWalkerHomeScreen({ navigation }) {
 
   const handleStatusChange = async (status) => {
     triggerHaptic();
-    const previousStatus = availabilityStatus;
     setAvailabilityStatus(status);
     
-    // Atualizar disponibilidade no backend (silenciosamente, sem spam de erros)
     try {
       await api.put(`/dogwalkers/usuario/${user.id}/disponibilidade`, {
         disponibilidade: status === 'available' ? 'DISPONIVEL' : 'INDISPONIVEL'
       });
     } catch (error) {
-      // Se falhar, reverter o estado visual (mas não mostrar erro repetido)
-      console.log('Não foi possível atualizar disponibilidade - dogwalker pode não estar cadastrado ainda');
-      // Não reverter - deixar o usuário com a UI que ele escolheu
+      console.log('Não foi possível atualizar disponibilidade');
     }
   };
 
-  // Aceitar agendamento pendente
   const handleAcceptAppointment = async (appointmentId) => {
     try {
       await api.put(`/agendamentos/${appointmentId}/aceitar`, {
@@ -201,7 +199,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
     }
   };
 
-  // Rejeitar agendamento pendente
   const handleRejectAppointment = async (appointmentId) => {
     Alert.alert(
       'Confirmar',
@@ -228,7 +225,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
     );
   };
 
-  // Iniciar passeio
   const handleStartWalk = async (appointmentId) => {
     try {
       await api.put(`/agendamentos/${appointmentId}/iniciar`, {
@@ -242,7 +238,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
     }
   };
 
-  // Navega para a tela de finalização de passeio
   const handleFinishWalk = (appointment) => {
     const mockWalkData = {
       appointmentId: appointment.id,
@@ -254,7 +249,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
     navigation.navigate('FinishWalk', { walkData: mockWalkData });
   };
 
-  // Marcar datas com agendamentos no calendário
   const markedDates = useMemo(() => {
     const marks = {};
     Object.keys(allAppointments).forEach(date => {
@@ -320,20 +314,15 @@ export default function DogWalkerHomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.calendarHeader}>
-              <Text style={styles.monthText}>{new Date(selectedDate.replace(/-/g, '/')).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</Text>
-              <View style={styles.switchContainer}>
-                <TouchableOpacity onPress={() => { triggerHaptic(); setSelectedDate(getTodayDate()); }} style={styles.todayButton}><Text style={styles.todayButtonText}>Hoje</Text></TouchableOpacity>
-                <Text style={styles.switchLabel}>Mês</Text>
-                <Switch onValueChange={() => { triggerHaptic(); setIsMonthView(!isMonthView); }} value={isMonthView} />
-              </View>
-            </View>
-
             <View style={styles.calendarWrapper}>
-              {isMonthView ? <Calendar {...calendarProps} /> : <CalendarList horizontal pagingEnabled calendarHeight={80} renderHeader={() => <View />} {...calendarProps} />}
+              {/* Calendário único com Swipe ativado */}
+              <Calendar 
+                {...calendarProps} 
+                enableSwipeMonths={true} 
+              />
             </View>
 
-            <Text style={styles.agendaTitle}>Agendamentos de {new Date(selectedDate.replace(/-/g, '/')).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</Text>
+            <Text style={styles.agendaTitle}>Agendamentos de {formatTitleDate(selectedDate)}</Text>
           </>
         }
         data={appointmentsForDay}
@@ -342,7 +331,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
             <View style={styles.agendaItemWrapper}>
                 <AgendaItem appointment={item} isNext={item.id === nextAppointmentId} />
                 
-                {/* Botões de ação baseado no status */}
                 {item.status === 'pending' && (
                   <View style={styles.actionButtonsRow}>
                     <TouchableOpacity 
@@ -393,8 +381,6 @@ export default function DogWalkerHomeScreen({ navigation }) {
   );
 }
 
-
-// OMITIDO: O código de estilo e tema do calendário que você já tem
 const calendarTheme = { 
     calendarBackground: COLORS.background,
     selectedDayBackgroundColor: COLORS.primary,
@@ -409,16 +395,21 @@ const calendarTheme = {
     textMonthFontWeight: 'bold',
     textDayHeaderFontWeight: 'bold',
     textDayFontSize: 14,
-    textMonthFontSize: 16,
+    textMonthFontSize: 18, 
 };
+
 const styles = StyleSheet.create({ 
-  safeArea: { flex: 1, backgroundColor: COLORS.background },
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: COLORS.background 
+  },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 16 : 0,
+    // Correção para barra de status no Android
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 0,
     marginBottom: 16,
   },
   welcomeTitle: { fontSize: 20, color: COLORS.textSecondary },
@@ -458,28 +449,6 @@ const styles = StyleSheet.create({
   },
   statusButtonText: { color: COLORS.textPrimary, fontWeight: '600' },
   statusTextActive: { fontWeight: 'bold' },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  monthText: { fontSize: 18, fontWeight: 'bold', color: COLORS.textPrimary },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  todayButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  todayButtonText: { color: COLORS.white, fontWeight: 'bold' },
-  switchLabel: { fontSize: 14, color: COLORS.textSecondary },
   calendarWrapper: { marginHorizontal: 24, marginBottom: 20 },
   agendaTitle: { 
     fontSize: 22, 
@@ -560,12 +529,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  // NOVOS ESTILOS PARA O BOTÃO DE FINALIZAR
   finishButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#00C853', // Verde vibrante
+    backgroundColor: '#00C853',
     paddingVertical: 10,
     borderRadius: 8,
     marginTop: 10,
