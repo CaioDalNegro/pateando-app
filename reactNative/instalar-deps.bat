@@ -22,7 +22,7 @@ echo.
 :: -----------------------------------------------------------------------------------
 :: COMANDO UNICO COM TODAS AS DEPENDENCIAS QUE UTILIZAMOS NO PROJETO
 :: -----------------------------------------------------------------------------------
-npm install axios @react-native-async-storage/async-storage @react-navigation/native @react-navigation/stack react-native-gesture-handler react-native-reanimated react-native-screens react-native-safe-area-context expo-linear-gradient react-native-maps expo-location @react-native-community/datetimepicker react-native-calendars expo-haptics @expo/vector-icons
+npm install axios @react-native-async-storage/async-storage @react-navigation/native @react-navigation/stack react-native-gesture-handler react-native-reanimated react-native-screens react-native-safe-area-context expo-linear-gradient expo-location @react-native-community/datetimepicker react-native-calendars expo-haptics @expo/vector-icons react-native-maps@1.20.1
 
 :: Verifica se a instalacao foi bem sucedida
 if %errorlevel% neq 0 (
