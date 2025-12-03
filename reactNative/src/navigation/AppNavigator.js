@@ -4,6 +4,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { COLORS } from '../theme/colors';
 
+// Import das telas
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import InicialClientScreen from '../screens/InicialClientScreen';
@@ -16,6 +17,7 @@ import AgendaScreen from '../screens/AgendaScreen';
 import SelectDogWalkerScreen from '../screens/SelectDogwalkerScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import PaymentScreen from '../screens/PaymentScreen'; // <--- 1. IMPORTADO AQUI
 
 const Stack = createStackNavigator();
 
@@ -33,13 +35,13 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!user ? (
-        // Telas de Autenticação
+        // Telas de Autenticação (Login/Registro)
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
       ) : user.tipoUsuario === 'CLIENTE' ? (
-        // Telas do Cliente
+        // Telas do Cliente (Fluxo de quem contrata)
         <>
           <Stack.Screen name="InicialClient" component={InicialClientScreen} />
           <Stack.Screen name="MyPets" component={MyPetsScreen} />
@@ -49,15 +51,18 @@ export default function AppNavigator() {
           <Stack.Screen name="WalkTracker" component={WalkTrackerScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          
+          {/* 2. ADICIONADO AQUI NO FLUXO DO CLIENTE 👇 */}
+          <Stack.Screen name="Payment" component={PaymentScreen} />
         </>
       ) : user.tipoUsuario === 'DOGWALKER' ? (
-        // Telas do Dog Walker
+        // Telas do Dog Walker (Fluxo de quem passeia)
         <>
           <Stack.Screen name="DogWalkerHome" component={DogWalkerHomeScreen} />
           <Stack.Screen name="FinishWalk" component={FinishWalkScreen} />
         </>
       ) : (
-        // Fallback
+        // Fallback (caso algo dê errado com o tipo de usuário)
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />

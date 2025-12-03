@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useContext, lazy, Suspense } from 'react';
 import { 
   View, Text, SafeAreaView, StyleSheet, TouchableOpacity, ScrollView, 
-  ActivityIndicator, Alert, Dimensions, Platform,
-  Image
+  ActivityIndicator, Alert, Dimensions, Platform, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -11,24 +10,14 @@ import { COLORS } from '../theme/colors';
 import { AuthContext } from '../context/AuthContext'; 
 import api from '../services/api';
 
-// Importa o MapView apenas se NÃO for web, usando lazy loading
 const MapView = Platform.OS === 'web' ? null : lazy(() => import('react-native-maps'));
 
 const { width, height } = Dimensions.get('window');
 
-// Configuração do Calendário para Português
 LocaleConfig.locales['pt-br'] = {
-  monthNames: [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-  ],
-  monthNamesShort: [
-    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-  ],
-  dayNames: [
-    'Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'
-  ],
+  monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
+  monthNamesShort: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+  dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
   dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
   today: 'Hoje'
 };
@@ -41,14 +30,12 @@ const basicPlanDurations = [
 ];
 
 const availableTimeSlots = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00'];
-
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 export default function AgendaScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const [location, setLocation] = useState(null);
   
-  // Estados para pets
   const [userPets, setUserPets] = useState([]);
   const [isLoadingPets, setIsLoadingPets] = useState(true);
   
@@ -57,22 +44,17 @@ export default function AgendaScreen({ navigation }) {
   const [selectedDate, setSelectedDate] = useState(getTodayDateString());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(availableTimeSlots[0]);
 
-  // Buscar pets do usuário
   useEffect(() => {
     fetchUserPets();
   }, [user]);
 
   const fetchUserPets = async () => {
     if (!user?.id) return;
-    
     try {
       setIsLoadingPets(true);
       const response = await api.get(`/pets/user/${user.id}`);
       setUserPets(response.data);
-      // Selecionar o primeiro pet por padrão
-      if (response.data.length > 0) {
-        setSelectedPetId(response.data[0].id);
-      }
+      if (response.data.length > 0) setSelectedPetId(response.data[0].id);
     } catch (error) {
       console.error('Erro ao buscar pets:', error);
       Alert.alert('Erro', 'Não foi possível carregar seus pets.');
@@ -84,37 +66,19 @@ export default function AgendaScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       if (Platform.OS === 'web') {
-        setLocation({ latitude: -22.0177, longitude: -47.8908 }); // Localização padrão (São Carlos) para web
+        setLocation({ latitude: -22.0177, longitude: -47.8908 });
         return;
       }
-
-      // --- CORREÇÃO APLICADA AQUI ---
       const permissionResult = await Location.requestForegroundPermissionsAsync();
-
-      // 1. Verificamos se a biblioteca retornou algo
-      if (!permissionResult) {
-        console.error("A biblioteca de localização falhou (retornou undefined).");
-        Alert.alert("Erro", "Não foi possível verificar a permissão de localização.");
-        setLocation({ latitude: -22.0177, longitude: -47.8908 }); // Define localização padrão
-        return;
-      }
-      
-      // 2. Agora que sabemos que permissionResult existe, podemos desestruturar o status
-      const { status } = permissionResult;
-      
-      if (status !== 'granted') {
-        Alert.alert("Permissão Necessária", "Precisamos da sua localização para mostrar o mapa.");
+      if (!permissionResult || permissionResult.status !== 'granted') {
         setLocation({ latitude: -22.0177, longitude: -47.8908 }); 
         return;
       }
-      // --- FIM DA CORREÇÃO ---
-
       try {
         let currentLocation = await Location.getCurrentPositionAsync({});
         setLocation(currentLocation.coords);
       } catch (error) {
-         console.error("Erro ao obter localização:", error);
-         setLocation({ latitude: -22.0177, longitude: -47.8908 }); // Localização padrão em caso de erro
+         setLocation({ latitude: -22.0177, longitude: -47.8908 });
       }
     })();
   }, []);
@@ -125,29 +89,25 @@ export default function AgendaScreen({ navigation }) {
       return; 
     }
     
-    // Buscar o pet selecionado
+    // Pega os dados selecionados
     const selectedPet = userPets.find(p => p.id === selectedPetId);
-    // Buscar a duração selecionada
     const selectedDuration = basicPlanDurations.find(d => d.id === selectedDurationId);
     
-    // Combina a data e a hora antes de enviar
-    const [year, month, day] = selectedDate.split('-');
-    const [hour, minute] = selectedTimeSlot.split(':');
-    const finalDateTime = new Date(year, month - 1, day, hour, minute);
-
-    navigation.navigate('SelectDogWalker', { 
-      petId: selectedPetId, 
+    // Cria um objeto de agendamento simulado
+    const mockAppointment = {
+      dogwalkerName: 'Ana Clara', // Nome fixo para simulação
       petName: selectedPet?.nome || 'Pet',
-      durationId: selectedDurationId,
-      durationMinutes: selectedDuration?.minutes || 30,
-      price: selectedDuration?.price || 'R$ 25',
-      dateTime: finalDateTime.toISOString(),
-    });
+      price: parseFloat(selectedDuration?.price.replace('R$ ', '')),
+      date: new Date(selectedDate).toLocaleDateString('pt-BR'),
+      time: selectedTimeSlot
+    };
+
+    // Vai direto para o pagamento com os dados
+    navigation.navigate('Payment', { appointment: mockAppointment });
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Metade Superior: O Mapa */}
       <View style={styles.mapContainer}>
         {MapView && location ? (
           <Suspense fallback={<ActivityIndicator size="large" color={COLORS.primary} style={StyleSheet.absoluteFill} />}>
@@ -165,21 +125,14 @@ export default function AgendaScreen({ navigation }) {
           </Suspense>
         ) : (
           <View style={styles.mapPlaceholder}>
-             {Platform.OS === 'web' ? (
-                <Text style={styles.mapPlaceholderText}>Mapa indisponível na web.</Text>
-             ) : (
-                <ActivityIndicator size="large" color={COLORS.primary} />
-             )}
+             <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
         )}
-        
-        {/* Botão de Voltar sobre o mapa */}
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color={COLORS.textPrimary} />
         </TouchableOpacity>
       </View>
 
-      {/* Metade Inferior: O Painel de Opções */}
       <View style={styles.bottomSheet}>
         <View style={styles.handleBar} />
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -190,10 +143,7 @@ export default function AgendaScreen({ navigation }) {
           ) : userPets.length === 0 ? (
             <View style={styles.noPetsContainer}>
               <Text style={styles.noPetsText}>Você ainda não tem pets cadastrados.</Text>
-              <TouchableOpacity 
-                style={styles.addFirstPetButton} 
-                onPress={() => navigation.navigate('RegisterPetClient')}
-              >
+              <TouchableOpacity style={styles.addFirstPetButton} onPress={() => navigation.navigate('RegisterPetClient')}>
                 <Ionicons name="add-circle" size={24} color={COLORS.white} />
                 <Text style={styles.addFirstPetText}>Cadastrar meu primeiro pet</Text>
               </TouchableOpacity>
@@ -240,9 +190,7 @@ export default function AgendaScreen({ navigation }) {
           <Calendar
             style={styles.calendar}
             onDayPress={(day) => setSelectedDate(day.dateString)}
-            markedDates={{
-              [selectedDate]: { selected: true, selectedColor: COLORS.primary }
-            }}
+            markedDates={{ [selectedDate]: { selected: true, selectedColor: COLORS.primary } }}
             minDate={getTodayDateString()}
             theme={{
               calendarBackground: COLORS.white,
@@ -260,23 +208,16 @@ export default function AgendaScreen({ navigation }) {
             {availableTimeSlots.map(time => (
               <TouchableOpacity
                 key={time}
-                style={[
-                  styles.timeSlotButton,
-                  selectedTimeSlot === time && styles.timeSlotSelected
-                ]}
+                style={[styles.timeSlotButton, selectedTimeSlot === time && styles.timeSlotSelected]}
                 onPress={() => setSelectedTimeSlot(time)}
               >
-                <Text style={[
-                  styles.timeSlotText,
-                  selectedTimeSlot === time && styles.timeSlotTextSelected
-                ]}>{time}</Text>
+                <Text style={[styles.timeSlotText, selectedTimeSlot === time && styles.timeSlotTextSelected]}>{time}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
         </ScrollView>
         
-        {/* Botão de Continuar Fixo */}
         <View style={styles.continueButtonContainer}>
           <TouchableOpacity 
             style={[styles.continueButton, userPets.length === 0 && styles.continueButtonDisabled]} 
@@ -293,199 +234,40 @@ export default function AgendaScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.white },
-  // --- Mapa (Metade Superior) ---
-  mapContainer: {
-    flex: 1, // Ocupa a metade de cima
-    backgroundColor: '#E0E0E0',
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  mapPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#E0E0E0',
-  },
-  mapPlaceholderText: {
-    color: COLORS.textSecondary,
-    fontSize: 16,
-  },
-  backButton: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? 40 : 50,
-    left: 24,
-    backgroundColor: COLORS.white,
-    padding: 8,
-    borderRadius: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-  },
-  // --- Painel (Metade Inferior) ---
-  bottomSheet: {
-    flex: 1.5, // Ocupa mais espaço que o mapa
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    marginTop: -20, // Puxa o painel um pouco para cima do mapa
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-  },
-  handleBar: {
-    width: 50,
-    height: 5,
-    backgroundColor: COLORS.card,
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  scrollContent: {
-     paddingBottom: 100, // Espaço para o botão "Continuar" não flutuar por cima
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-    marginBottom: 16,
-    marginTop: 24,
-  },
-  // --- Seletores (Pet, Duração, Hora) ---
+  mapContainer: { flex: 1, backgroundColor: '#E0E0E0' },
+  map: { ...StyleSheet.absoluteFillObject },
+  mapPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#E0E0E0' },
+  backButton: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 50, left: 24, backgroundColor: COLORS.white, padding: 8, borderRadius: 20, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  bottomSheet: { flex: 1.5, backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 12, marginTop: -20, elevation: 10, shadowColor: '#000', shadowOpacity: 0.1 },
+  handleBar: { width: 50, height: 5, backgroundColor: COLORS.card, borderRadius: 3, alignSelf: 'center', marginBottom: 16 },
+  scrollContent: { paddingBottom: 100 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.textPrimary, marginBottom: 16, marginTop: 24 },
   petSelector: { marginBottom: 16 },
-  petCard: {
-     backgroundColor: COLORS.background,
-     borderRadius: 12,
-     padding: 12,
-     alignItems: 'center',
-     marginRight: 16,
-     borderWidth: 2,
-     borderColor: 'transparent',
-  },
-  petCardSelected: {
-     borderColor: COLORS.primary,
-     backgroundColor: COLORS.white,
-     elevation: 3,
-  },
+  petCard: { backgroundColor: COLORS.background, borderRadius: 12, padding: 12, alignItems: 'center', marginRight: 16, borderWidth: 2, borderColor: 'transparent' },
+  petCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.white, elevation: 3 },
   petImage: { width: 60, height: 60, borderRadius: 30, marginBottom: 8, backgroundColor: COLORS.card },
   petName: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
   petNameSelected: { color: COLORS.primary },
-  addPetCard: {
-     width: 84,
-     height: 112, 
-     backgroundColor: COLORS.background,
-     borderRadius: 12,
-     justifyContent: 'center',
-     alignItems: 'center',
-     borderWidth: 2,
-     borderColor: COLORS.card,
-     borderStyle: 'dashed',
-   },
+  addPetCard: { width: 84, height: 112, backgroundColor: COLORS.background, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.card, borderStyle: 'dashed' },
   addPetText: { fontSize: 14, fontWeight: '600', color: COLORS.primary, marginTop: 4 },
   durationContainer: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
-  durationCard: {
-     flex: 1,
-     backgroundColor: COLORS.background,
-     borderRadius: 12,
-     padding: 16,
-     alignItems: 'center',
-     borderWidth: 2,
-     borderColor: 'transparent',
-  },
-  durationCardSelected: {
-     borderColor: COLORS.primary,
-     backgroundColor: COLORS.white,
-     elevation: 3,
-  },
+  durationCard: { flex: 1, backgroundColor: COLORS.background, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  durationCardSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.white, elevation: 3 },
   durationText: { fontSize: 16, fontWeight: 'bold', color: COLORS.textPrimary },
   durationTextSelected: { color: COLORS.primary },
   priceText: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
   priceTextSelected: { color: COLORS.primary, fontWeight: '500' },
-  // --- Calendário e Hora ---
-  calendar: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.card,
-  },
-  timeSlotButton: {
-    backgroundColor: COLORS.background,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  timeSlotSelected: {
-    backgroundColor: COLORS.white,
-    borderColor: COLORS.primary,
-    elevation: 3,
-  },
-  timeSlotText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-  },
-  timeSlotTextSelected: {
-    color: COLORS.primary,
-  },
-  // --- Botão Fixo ---
-  continueButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    paddingTop: 12,
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.card,
-  },
-  continueButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  continueButtonDisabled: {
-    backgroundColor: COLORS.textSecondary,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  continueButtonText: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  noPetsContainer: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  noPetsText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 16,
-  },
-  addFirstPetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-  },
-  addFirstPetText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
+  calendar: { borderRadius: 12, borderWidth: 1, borderColor: COLORS.card },
+  timeSlotButton: { backgroundColor: COLORS.background, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginRight: 12, borderWidth: 2, borderColor: 'transparent' },
+  timeSlotSelected: { backgroundColor: COLORS.white, borderColor: COLORS.primary, elevation: 3 },
+  timeSlotText: { fontSize: 16, fontWeight: 'bold', color: COLORS.textPrimary },
+  timeSlotTextSelected: { color: COLORS.primary },
+  continueButtonContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, paddingTop: 12, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.card },
+  continueButton: { backgroundColor: COLORS.primary, borderRadius: 16, paddingVertical: 18, alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  continueButtonDisabled: { backgroundColor: COLORS.textSecondary, shadowOpacity: 0, elevation: 0 },
+  continueButtonText: { color: COLORS.white, fontSize: 18, fontWeight: 'bold' },
+  noPetsContainer: { alignItems: 'center', paddingVertical: 24 },
+  noPetsText: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 16 },
+  addFirstPetButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, gap: 8 },
+  addFirstPetText: { color: COLORS.white, fontWeight: 'bold', fontSize: 14 },
 });
