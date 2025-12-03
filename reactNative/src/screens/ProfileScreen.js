@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../theme/colors";
 import { AuthContext } from "../context/AuthContext";
+import api from "../services/api";
 
 // Componente para cada item do menu
 const ProfileMenuItem = ({ icon, text, onPress }) => (
@@ -29,6 +32,54 @@ const ProfileMenuItem = ({ icon, text, onPress }) => (
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
+  
+  // Estados para estatísticas
+  const [estatisticas, setEstatisticas] = useState({
+    totalPasseios: 0,
+    horasFormatadas: "0h",
+    dogwalkerFavorito: "Nenhum",
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Função para buscar estatísticas
+  const fetchEstatisticas = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await api.get(`/usuarios/${user.id}/estatisticas`);
+      setEstatisticas(response.data);
+    } catch (error) {
+      console.log("Erro ao buscar estatísticas:", error);
+      // Manter valores padrão em caso de erro
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [user?.id]);
+
+  // Buscar estatísticas ao montar o componente
+  useEffect(() => {
+    fetchEstatisticas();
+  }, [fetchEstatisticas]);
+
+  // Função para refresh
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    fetchEstatisticas();
+  }, [fetchEstatisticas]);
+
+  // Formatar data de criação do usuário (se disponível)
+  const formatMemberSince = () => {
+    // Se tiver a data de criação no user, usar ela
+    // Por enquanto, usar data atual como placeholder
+    const meses = [
+      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+    const now = new Date();
+    return `Membro desde ${meses[now.getMonth()]}, ${now.getFullYear()}`;
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -37,7 +88,17 @@ export default function ProfileScreen({ navigation }) {
           <Ionicons name="arrow-back" size={28} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView 
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <Image
@@ -46,23 +107,32 @@ export default function ProfileScreen({ navigation }) {
           />
           <Text style={styles.profileName}>{user?.nome || "Cliente"}</Text>
           <Text style={styles.profileMemberSince}>
-            Membro desde Outubro, 2025
+            {formatMemberSince()}
           </Text>
         </View>
 
+        {/* Estatísticas */}
         <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>12</Text>
-            <Text style={styles.statLabel}>Passeios</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>8h</Text>
-            <Text style={styles.statLabel}>No total</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>Maria C.</Text>
-            <Text style={styles.statLabel}>Walker Fav.</Text>
-          </View>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{estatisticas.totalPasseios}</Text>
+                <Text style={styles.statLabel}>Passeios</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>{estatisticas.horasFormatadas}</Text>
+                <Text style={styles.statLabel}>No total</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue} numberOfLines={1} ellipsizeMode="tail">
+                  {estatisticas.dogwalkerFavorito}
+                </Text>
+                <Text style={styles.statLabel}>Walker Fav.</Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.menuWrapper}>
@@ -134,18 +204,23 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
+    alignItems: "center",
     marginBottom: 32,
     backgroundColor: COLORS.white,
     borderRadius: 16,
     padding: 20,
+    minHeight: 80,
   },
   statBox: {
     alignItems: "center",
+    flex: 1,
   },
   statValue: {
     fontSize: 22,
     fontWeight: "bold",
     color: COLORS.primary,
+    maxWidth: 100,
+    textAlign: "center",
   },
   statLabel: {
     fontSize: 14,

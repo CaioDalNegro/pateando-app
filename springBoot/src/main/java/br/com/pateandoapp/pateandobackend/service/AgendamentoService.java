@@ -165,6 +165,7 @@ public class AgendamentoService {
 
     /**
      * Inicia um passeio (muda status para EM_ANDAMENTO)
+     * ✅ ATUALIZADO: Muda disponibilidade do dogwalker para OCUPADO
      */
     public Agendamento iniciarPasseio(Long agendamentoId, Long dogwalkerUsuarioId) {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
@@ -178,12 +179,18 @@ public class AgendamentoService {
             throw new RuntimeException("Este agendamento precisa estar aceito para iniciar!");
         }
 
+        // ✅ NOVO: Mudar disponibilidade do dogwalker para OCUPADO
+        Dogwalker dogwalker = agendamento.getDogwalker();
+        dogwalker.setDisponibilidade("OCUPADO");
+        dogwalkerRepository.save(dogwalker);
+
         agendamento.setStatus("EM_ANDAMENTO");
         return agendamentoRepository.save(agendamento);
     }
 
     /**
      * Finaliza um passeio
+     * ✅ ATUALIZADO: Incrementa totalPasseios e muda disponibilidade para DISPONIVEL
      */
     public Agendamento finalizarPasseio(Long agendamentoId, Long dogwalkerUsuarioId) {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
@@ -197,6 +204,22 @@ public class AgendamentoService {
             throw new RuntimeException("Este passeio não está em andamento!");
         }
 
+        // ✅ Atualizar dogwalker: incrementar passeios e voltar disponibilidade
+        Dogwalker dogwalker = agendamento.getDogwalker();
+        
+        // Incrementar contador de passeios
+        Integer totalAtual = dogwalker.getTotalPasseios();
+        if (totalAtual == null) {
+            totalAtual = 0;
+        }
+        dogwalker.setTotalPasseios(totalAtual + 1);
+        
+        // Voltar disponibilidade para DISPONIVEL
+        dogwalker.setDisponibilidade("DISPONIVEL");
+        
+        dogwalkerRepository.save(dogwalker);
+
+        // Finalizar o agendamento
         agendamento.setStatus("CONCLUIDO");
         return agendamentoRepository.save(agendamento);
     }
