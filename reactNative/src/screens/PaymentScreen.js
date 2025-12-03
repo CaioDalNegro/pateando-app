@@ -1,204 +1,233 @@
-import React, { useState } from 'react';
-import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, 
-  TextInput, ActivityIndicator, Alert, Platform, StatusBar, Image 
+import React, { useState, useContext } from 'react';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme/colors';
+import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
 
-export default function PaymentScreen({ route, navigation }) {
-  // Recebe os dados da tela anterior
-  const { appointment } = route.params || { 
-    appointment: { 
-      dogwalkerName: 'Ana Clara', 
-      petName: 'Rex', 
-      price: 25.00, 
-      date: 'Hoje', 
-      time: '14:00' 
-    } 
+// Métodos de pagamento disponíveis
+const paymentMethods = [
+  { id: 'pix', name: 'PIX', icon: 'qr-code-outline', description: 'Pagamento instantâneo' },
+  { id: 'credit', name: 'Cartão de Crédito', icon: 'card-outline', description: 'Visa, Mastercard, Elo' },
+  { id: 'debit', name: 'Cartão de Débito', icon: 'card-outline', description: 'Débito online' },
+  { id: 'cash', name: 'Dinheiro', icon: 'cash-outline', description: 'Pagar ao dogwalker' },
+];
+
+export default function PaymentScreen({ navigation, route }) {
+  const { user } = useContext(AuthContext);
+  const { 
+    petId, 
+    petName, 
+    durationMinutes, 
+    price, 
+    dateTime, 
+    dogwalker 
+  } = route.params || {};
+
+  const [selectedPayment, setSelectedPayment] = useState('pix');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Formatar data para exibição
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
   };
 
-  const [paymentMethod, setPaymentMethod] = useState('credit_card');
-  const [loading, setLoading] = useState(false);
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
-  // Estados do formulário (apenas visual)
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
+  // Extrair valor numérico do preço
+  const getPriceValue = () => {
+    if (!price) return 0;
+    const numericPrice = parseFloat(price.replace('R$ ', '').replace(',', '.'));
+    return isNaN(numericPrice) ? 0 : numericPrice;
+  };
 
-  const handlePayment = () => {
-    // Validação visual simples
-    if (paymentMethod === 'credit_card' && (cardNumber.length < 10 || cardName.length < 3)) {
-      Alert.alert('Atenção', 'Por favor, preencha os dados do cartão para simular.');
-      return;
-    }
+  const handleConfirmPayment = async () => {
+    setIsProcessing(true);
 
-    setLoading(true);
+    try {
+      // Formatar a data para o backend
+      const dataHora = new Date(dateTime).toISOString().slice(0, 19);
 
-    // Simula processamento (2 segundos)
-    setTimeout(() => {
-      setLoading(false);
+      const agendamentoData = {
+        clienteId: user.id,
+        petId: petId,
+        dogwalkerId: dogwalker.id,
+        dataHora: dataHora,
+        duracao: durationMinutes,
+        observacoes: `Passeio de ${durationMinutes} minutos - Pagamento: ${selectedPayment.toUpperCase()}`,
+      };
+
+      console.log('Criando agendamento:', agendamentoData);
+
+      const response = await api.post('/agendamentos/criar', agendamentoData);
+
+      console.log('Agendamento criado:', response.data);
+
       Alert.alert(
-        'Pagamento Aprovado! 🎉',
-        'Seu passeio foi agendado com sucesso. O Dogwalker foi notificado.',
+        'Pagamento Confirmado! 🎉',
+        `Seu passeio com ${dogwalker.usuario?.nome || 'o dogwalker'} foi agendado com sucesso!\n\nAguarde a confirmação do dogwalker.`,
         [
-          { 
-            text: 'Voltar ao Início', 
-            onPress: () => navigation.reset({
-              index: 0,
-              routes: [{ name: 'InicialClient' }],
-            })
-          }
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('InicialClient'),
+          },
         ]
       );
-    }, 2000);
+    } catch (error) {
+      console.error('Erro ao criar agendamento:', error.response?.data || error.message);
+      Alert.alert(
+        'Erro',
+        error.response?.data || 'Não foi possível processar o pagamento. Tente novamente.'
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pagamento</Text>
-        <View style={{ width: 24 }} /> 
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        
-        {/* RESUMO DO PEDIDO */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Resumo do Pedido */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Resumo do Pedido</Text>
+          
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Dogwalker</Text>
-            <Text style={styles.summaryValue}>{appointment.dogwalkerName}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Pet</Text>
-            <Text style={styles.summaryValue}>{appointment.petName}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Data</Text>
-            <Text style={styles.summaryValue}>{appointment.date}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Horário</Text>
-            <Text style={styles.summaryValue}>{appointment.time}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total a pagar</Text>
-            <Text style={styles.totalValue}>R$ {appointment.price.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        {/* SELEÇÃO DE MÉTODO */}
-        <Text style={styles.sectionTitle}>Forma de Pagamento</Text>
-        
-        <View style={styles.methodsContainer}>
-          <TouchableOpacity 
-            style={[styles.methodButton, paymentMethod === 'credit_card' && styles.methodButtonActive]}
-            onPress={() => setPaymentMethod('credit_card')}
-          >
-            <Ionicons name="card-outline" size={24} color={paymentMethod === 'credit_card' ? '#FFF' : COLORS.primary} />
-            <Text style={[styles.methodText, paymentMethod === 'credit_card' && styles.methodTextActive]}>Cartão</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.methodButton, paymentMethod === 'pix' && styles.methodButtonActive]}
-            onPress={() => setPaymentMethod('pix')}
-          >
-            <Ionicons name="qr-code-outline" size={24} color={paymentMethod === 'pix' ? '#FFF' : COLORS.primary} />
-            <Text style={[styles.methodText, paymentMethod === 'pix' && styles.methodTextActive]}>PIX</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.methodButton, paymentMethod === 'cash' && styles.methodButtonActive]}
-            onPress={() => setPaymentMethod('cash')}
-          >
-            <Ionicons name="cash-outline" size={24} color={paymentMethod === 'cash' ? '#FFF' : COLORS.primary} />
-            <Text style={[styles.methodText, paymentMethod === 'cash' && styles.methodTextActive]}>Dinheiro</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* FORMULÁRIO DINÂMICO */}
-        {paymentMethod === 'credit_card' && (
-          <View style={styles.cardForm}>
-            <Text style={styles.inputLabel}>Número do Cartão</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="0000 0000 0000 0000" 
-              keyboardType="numeric"
-              value={cardNumber}
-              onChangeText={setCardNumber}
-            />
-            
-            <Text style={styles.inputLabel}>Nome no Cartão</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Nome como está no cartão" 
-              value={cardName}
-              onChangeText={setCardName}
-            />
-
-            <View style={styles.rowInputs}>
-              <View style={{ flex: 1, marginRight: 10 }}>
-                <Text style={styles.inputLabel}>Validade</Text>
-                <TextInput 
-                  style={styles.input} 
-                  placeholder="MM/AA" 
-                  keyboardType="numeric"
-                  value={cardExpiry}
-                  onChangeText={setCardExpiry}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>CVV</Text>
-                <TextInput 
-                  style={styles.input} 
-                  placeholder="123" 
-                  keyboardType="numeric"
-                  maxLength={3}
-                  value={cardCvv}
-                  onChangeText={setCardCvv}
-                />
-              </View>
+            <View style={styles.summaryIcon}>
+              <Ionicons name="paw" size={20} color={COLORS.primary} />
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Pet</Text>
+              <Text style={styles.summaryValue}>{petName || 'Pet'}</Text>
             </View>
           </View>
-        )}
 
-        {paymentMethod === 'pix' && (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              Ao finalizar, um código PIX copia-e-cola será gerado. O agendamento será confirmado automaticamente após o pagamento.
-            </Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryIcon}>
+              <Ionicons name="person" size={20} color={COLORS.primary} />
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Dog Walker</Text>
+              <Text style={styles.summaryValue}>{dogwalker?.usuario?.nome || 'Dogwalker'}</Text>
+            </View>
           </View>
-        )}
 
-        {paymentMethod === 'cash' && (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              Você pagará R$ {appointment.price.toFixed(2)} diretamente ao Dogwalker no momento do passeio.
-            </Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryIcon}>
+              <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Duração</Text>
+              <Text style={styles.summaryValue}>{durationMinutes} minutos</Text>
+            </View>
           </View>
-        )}
 
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryIcon}>
+              <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
+            </View>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Data e Hora</Text>
+              <Text style={styles.summaryValue}>
+                {formatDate(dateTime)} às {formatTime(dateTime)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{price || 'R$ 0,00'}</Text>
+          </View>
+        </View>
+
+        {/* Métodos de Pagamento */}
+        <Text style={styles.sectionTitle}>Forma de Pagamento</Text>
+        
+        {paymentMethods.map((method) => (
+          <TouchableOpacity
+            key={method.id}
+            style={[
+              styles.paymentOption,
+              selectedPayment === method.id && styles.paymentOptionSelected,
+            ]}
+            onPress={() => setSelectedPayment(method.id)}
+          >
+            <View style={styles.paymentIconContainer}>
+              <Ionicons
+                name={method.icon}
+                size={24}
+                color={selectedPayment === method.id ? COLORS.primary : COLORS.textSecondary}
+              />
+            </View>
+            <View style={styles.paymentInfo}>
+              <Text
+                style={[
+                  styles.paymentName,
+                  selectedPayment === method.id && styles.paymentNameSelected,
+                ]}
+              >
+                {method.name}
+              </Text>
+              <Text style={styles.paymentDescription}>{method.description}</Text>
+            </View>
+            <View style={styles.radioOuter}>
+              {selectedPayment === method.id && <View style={styles.radioInner} />}
+            </View>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
-      {/* BOTÃO DE AÇÃO */}
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.payButton} 
-          onPress={handlePayment}
-          disabled={loading}
+      {/* Botão Confirmar */}
+      <View style={styles.bottomContainer}>
+        <View style={styles.priceContainer}>
+          <Text style={styles.priceLabel}>Total a pagar</Text>
+          <Text style={styles.priceValue}>{price || 'R$ 0,00'}</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.confirmButton, isProcessing && styles.confirmButtonDisabled]}
+          onPress={handleConfirmPayment}
+          disabled={isProcessing}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
+          {isProcessing ? (
+            <ActivityIndicator color={COLORS.white} />
           ) : (
-            <Text style={styles.payButtonText}>
-              Pagar R$ {appointment.price.toFixed(2)}
-            </Text>
+            <>
+              <Ionicons name="checkmark-circle" size={24} color={COLORS.white} />
+              <Text style={styles.confirmButtonText}>Confirmar Pagamento</Text>
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -209,147 +238,201 @@ export default function PaymentScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background || '#FCEFE6',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 0,
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.card,
+  },
+  backButton: {
+    padding: 8,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.textPrimary,
   },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 150,
   },
   summaryCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
     padding: 20,
-    marginBottom: 25,
+    marginBottom: 24,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 2,
   },
   summaryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    color: COLORS.textPrimary,
+    marginBottom: 16,
   },
   summaryRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  summaryLabel: { color: '#666', fontSize: 16 },
-  summaryValue: { color: '#333', fontSize: 16, fontWeight: '500' },
+  summaryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 122, 45, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  summaryInfo: {
+    flex: 1,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
   divider: {
     height: 1,
-    backgroundColor: '#EEE',
-    marginVertical: 15,
+    backgroundColor: COLORS.card,
+    marginVertical: 16,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  totalLabel: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  totalValue: { fontSize: 22, fontWeight: 'bold', color: COLORS.primary },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  totalValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    color: COLORS.textPrimary,
+    marginBottom: 16,
   },
-  methodsContainer: {
+  paymentOption: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 25,
-  },
-  methodButton: {
-    flex: 1,
     alignItems: 'center',
-    paddingVertical: 15,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 10,
-    marginHorizontal: 5,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  methodButtonActive: {
+  paymentOptionSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#FFF8F5',
+  },
+  paymentIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  paymentInfo: {
+    flex: 1,
+  },
+  paymentName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  paymentNameSelected: {
+    color: COLORS.primary,
+  },
+  paymentDescription: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  radioOuter: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: COLORS.primary,
   },
-  methodText: {
-    marginTop: 8,
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  methodTextActive: {
-    color: '#FFF',
-  },
-  cardForm: {
-    backgroundColor: '#FFF',
-    padding: 20,
-    borderRadius: 12,
-  },
-  inputLabel: {
-    color: '#333',
-    fontWeight: 'bold',
-    marginBottom: 8,
-    marginTop: 10,
-  },
-  input: {
-    backgroundColor: '#F9F9F9',
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  rowInputs: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  infoBox: {
-    backgroundColor: '#FFF3E0',
-    padding: 20,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FFE0B2',
-  },
-  infoText: {
-    color: '#E65100',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  footer: {
+  bottomContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFF',
-    padding: 20,
+    backgroundColor: COLORS.white,
+    padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
+    borderTopColor: COLORS.card,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  payButton: {
-    backgroundColor: '#00C853',
-    paddingVertical: 16,
-    borderRadius: 12,
+  priceContainer: {
+    flex: 1,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  priceValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  confirmButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  payButtonText: {
-    color: '#FFF',
-    fontSize: 18,
+  confirmButtonDisabled: {
+    backgroundColor: COLORS.textSecondary,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  confirmButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

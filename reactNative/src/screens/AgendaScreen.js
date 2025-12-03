@@ -93,17 +93,28 @@ export default function AgendaScreen({ navigation }) {
     const selectedPet = userPets.find(p => p.id === selectedPetId);
     const selectedDuration = basicPlanDurations.find(d => d.id === selectedDurationId);
     
-    // Cria um objeto de agendamento simulado
-    const mockAppointment = {
-      dogwalkerName: 'Ana Clara', // Nome fixo para simulação
-      petName: selectedPet?.nome || 'Pet',
-      price: parseFloat(selectedDuration?.price.replace('R$ ', '')),
-      date: new Date(selectedDate).toLocaleDateString('pt-BR'),
-      time: selectedTimeSlot
-    };
+    // ✅ CORREÇÃO DE TIMEZONE: Monta a data/hora sem problemas de fuso
+    // selectedDate está no formato "2025-01-21"
+    // selectedTimeSlot está no formato "09:00"
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const [hours, minutes] = selectedTimeSlot.split(':').map(Number);
+    
+    // Cria a data usando os componentes individuais (evita problema de UTC)
+    const dateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    
+    console.log('Data selecionada:', selectedDate);
+    console.log('Hora selecionada:', selectedTimeSlot);
+    console.log('DateTime criado:', dateTime.toString());
 
-    // Vai direto para o pagamento com os dados
-    navigation.navigate('Payment', { appointment: mockAppointment });
+    // Navega para SelectDogWalker passando os dados necessários
+    navigation.navigate('SelectDogWalker', {
+      petId: selectedPetId,
+      petName: selectedPet?.nome || 'Pet',
+      durationId: selectedDurationId,
+      durationMinutes: selectedDuration?.minutes,
+      price: selectedDuration?.price,
+      dateTime: dateTime.toISOString(),
+    });
   };
 
   return (
@@ -224,7 +235,7 @@ export default function AgendaScreen({ navigation }) {
             onPress={handleContinue}
             disabled={userPets.length === 0}
           >
-            <Text style={styles.continueButtonText}>Continuar</Text>
+            <Text style={styles.continueButtonText}>Escolher Dog Walker</Text>
           </TouchableOpacity>
         </View>
       </View>

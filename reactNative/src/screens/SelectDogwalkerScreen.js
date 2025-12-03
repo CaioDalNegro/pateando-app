@@ -11,35 +11,44 @@ import api from '../services/api';
 // Componente de Card do Dogwalker
 const DogwalkerCard = ({ dogwalker, isSelected, onSelect }) => {
   const usuario = dogwalker.usuario || {};
+  const isAvailable = dogwalker.disponibilidade === 'DISPONIVEL';
   
   return (
     <TouchableOpacity 
-      style={[styles.dogwalkerCard, isSelected && styles.dogwalkerCardSelected]}
+      style={[
+        styles.dogwalkerCard, 
+        isSelected && styles.dogwalkerCardSelected,
+        !isAvailable && styles.dogwalkerCardDisabled
+      ]}
       onPress={() => onSelect(dogwalker)}
+      disabled={!isAvailable}
     >
       <View style={styles.cardHeader}>
         <Image 
           source={{ uri: dogwalker.fotoUrl || 'https://via.placeholder.com/80/FF7A2D/FFFFFF?text=DW' }} 
-          style={styles.dogwalkerPhoto}
+          style={[styles.dogwalkerPhoto, !isAvailable && styles.dogwalkerPhotoDisabled]}
         />
         <View style={styles.dogwalkerInfo}>
-          <Text style={styles.dogwalkerName}>{usuario.nome || 'Dogwalker'}</Text>
+          <Text style={[styles.dogwalkerName, !isAvailable && styles.textDisabled]}>
+            {usuario.nome || 'Dogwalker'}
+          </Text>
           <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={16} color="#FFD700" />
-            <Text style={styles.ratingText}>
+            <Ionicons name="star" size={16} color={isAvailable ? "#FFD700" : "#CCC"} />
+            <Text style={[styles.ratingText, !isAvailable && styles.textDisabled]}>
               {dogwalker.avaliacaoMedia?.toFixed(1) || '5.0'} 
             </Text>
-            <Text style={styles.totalWalks}>
+            <Text style={[styles.totalWalks, !isAvailable && styles.textDisabled]}>
               ({dogwalker.totalPasseios || 0} passeios)
             </Text>
           </View>
           <View style={styles.statusContainer}>
             <View style={[
               styles.statusDot, 
-              { backgroundColor: dogwalker.disponibilidade === 'DISPONIVEL' ? '#4CAF50' : '#FF5722' }
+              { backgroundColor: isAvailable ? '#4CAF50' : '#FF5722' }
             ]} />
-            <Text style={styles.statusText}>
-              {dogwalker.disponibilidade === 'DISPONIVEL' ? 'Disponível' : 'Indisponível'}
+            <Text style={[styles.statusText, !isAvailable && styles.statusTextUnavailable]}>
+              {isAvailable ? 'Disponível' : 
+               dogwalker.disponibilidade === 'OCUPADO' ? 'Em passeio' : 'Indisponível'}
             </Text>
           </View>
         </View>
@@ -50,7 +59,7 @@ const DogwalkerCard = ({ dogwalker, isSelected, onSelect }) => {
         )}
       </View>
 
-      {dogwalker.descricao && (
+      {dogwalker.descricao && isAvailable && (
         <Text style={styles.description} numberOfLines={2}>
           {dogwalker.descricao}
         </Text>
@@ -58,18 +67,24 @@ const DogwalkerCard = ({ dogwalker, isSelected, onSelect }) => {
 
       <View style={styles.pricesContainer}>
         <View style={styles.priceItem}>
-          <Text style={styles.priceDuration}>30 min</Text>
-          <Text style={styles.priceValue}>R$ {dogwalker.preco30min?.toFixed(2) || '25.00'}</Text>
+          <Text style={[styles.priceDuration, !isAvailable && styles.textDisabled]}>30 min</Text>
+          <Text style={[styles.priceValue, !isAvailable && styles.textDisabled]}>
+            R$ {dogwalker.preco30min?.toFixed(2) || '25.00'}
+          </Text>
         </View>
         <View style={styles.priceDivider} />
         <View style={styles.priceItem}>
-          <Text style={styles.priceDuration}>60 min</Text>
-          <Text style={styles.priceValue}>R$ {dogwalker.preco60min?.toFixed(2) || '40.00'}</Text>
+          <Text style={[styles.priceDuration, !isAvailable && styles.textDisabled]}>60 min</Text>
+          <Text style={[styles.priceValue, !isAvailable && styles.textDisabled]}>
+            R$ {dogwalker.preco60min?.toFixed(2) || '40.00'}
+          </Text>
         </View>
         <View style={styles.priceDivider} />
         <View style={styles.priceItem}>
-          <Text style={styles.priceDuration}>90 min</Text>
-          <Text style={styles.priceValue}>R$ {dogwalker.preco90min?.toFixed(2) || '55.00'}</Text>
+          <Text style={[styles.priceDuration, !isAvailable && styles.textDisabled]}>90 min</Text>
+          <Text style={[styles.priceValue, !isAvailable && styles.textDisabled]}>
+            R$ {dogwalker.preco90min?.toFixed(2) || '55.00'}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -83,9 +98,8 @@ export default function SelectDogWalkerScreen({ navigation, route }) {
   const [dogwalkers, setDogwalkers] = useState([]);
   const [selectedDogwalker, setSelectedDogwalker] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Buscar dogwalkers disponíveis
+  // Buscar dogwalkers
   useEffect(() => {
     fetchDogwalkers();
   }, []);
@@ -93,13 +107,11 @@ export default function SelectDogWalkerScreen({ navigation, route }) {
   const fetchDogwalkers = async () => {
     try {
       setIsLoading(true);
-      // Buscar dogwalkers disponíveis
+      // Buscar todos os dogwalkers (o endpoint /disponiveis agora retorna todos)
       const response = await api.get('/dogwalkers/disponiveis');
       setDogwalkers(response.data);
     } catch (error) {
       console.error('Erro ao buscar dogwalkers:', error);
-      // Se não houver dogwalkers disponíveis, mostrar lista vazia
-      // ou buscar todos os dogwalkers como fallback
       try {
         const fallbackResponse = await api.get('/dogwalkers');
         setDogwalkers(fallbackResponse.data);
@@ -114,58 +126,33 @@ export default function SelectDogWalkerScreen({ navigation, route }) {
 
   const handleSelectDogwalker = (dogwalker) => {
     if (dogwalker.disponibilidade !== 'DISPONIVEL') {
-      Alert.alert('Indisponível', 'Este dogwalker não está disponível no momento.');
+      Alert.alert(
+        'Indisponível', 
+        dogwalker.disponibilidade === 'OCUPADO' 
+          ? 'Este dogwalker está em um passeio no momento.' 
+          : 'Este dogwalker não está disponível no momento.'
+      );
       return;
     }
     setSelectedDogwalker(dogwalker);
   };
 
-  const handleConfirmBooking = async () => {
+  // ✅ ATUALIZADO: Navega para Payment em vez de criar agendamento
+  const handleContinueToPayment = () => {
     if (!selectedDogwalker) {
       Alert.alert('Selecione', 'Por favor, selecione um dogwalker.');
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      // Formatar a data para o backend
-      const dataHora = new Date(dateTime).toISOString().slice(0, 19); // Remove o 'Z' do final
-
-      const agendamentoData = {
-        clienteId: user.id,
-        petId: petId,
-        dogwalkerId: selectedDogwalker.id,
-        dataHora: dataHora,
-        duracao: durationMinutes,
-        observacoes: `Passeio de ${durationMinutes} minutos`,
-      };
-
-      console.log('Enviando agendamento:', agendamentoData);
-
-      const response = await api.post('/agendamentos/criar', agendamentoData);
-
-      console.log('Agendamento criado:', response.data);
-
-      Alert.alert(
-        'Sucesso! 🎉',
-        `Seu pedido de passeio foi enviado para ${selectedDogwalker.usuario?.nome || 'o dogwalker'}! Aguarde a confirmação.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('InicialClient'),
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Erro ao criar agendamento:', error.response?.data || error.message);
-      Alert.alert(
-        'Erro',
-        error.response?.data || 'Não foi possível criar o agendamento. Tente novamente.'
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Navega para a tela de pagamento passando todos os dados
+    navigation.navigate('Payment', {
+      petId,
+      petName,
+      durationMinutes,
+      price,
+      dateTime,
+      dogwalker: selectedDogwalker,
+    });
   };
 
   // Formatar a data para exibição
@@ -215,7 +202,7 @@ export default function SelectDogWalkerScreen({ navigation, route }) {
       ) : dogwalkers.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="sad-outline" size={48} color={COLORS.textSecondary} />
-          <Text style={styles.emptyText}>Nenhum dogwalker disponível no momento.</Text>
+          <Text style={styles.emptyText}>Nenhum dogwalker cadastrado.</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchDogwalkers}>
             <Text style={styles.retryButtonText}>Tentar novamente</Text>
           </TouchableOpacity>
@@ -236,24 +223,18 @@ export default function SelectDogWalkerScreen({ navigation, route }) {
         />
       )}
 
-      {/* Botão de Confirmar */}
+      {/* Botão de Continuar */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={[
             styles.confirmButton,
-            (!selectedDogwalker || isSubmitting) && styles.confirmButtonDisabled,
+            !selectedDogwalker && styles.confirmButtonDisabled,
           ]}
-          onPress={handleConfirmBooking}
-          disabled={!selectedDogwalker || isSubmitting}
+          onPress={handleContinueToPayment}
+          disabled={!selectedDogwalker}
         >
-          {isSubmitting ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <>
-              <Text style={styles.confirmButtonText}>Confirmar Agendamento</Text>
-              <Ionicons name="checkmark-circle" size={24} color={COLORS.white} />
-            </>
-          )}
+          <Text style={styles.confirmButtonText}>Continuar para Pagamento</Text>
+          <Ionicons name="arrow-forward" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -362,6 +343,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
     backgroundColor: '#FFF8F5',
   },
+  dogwalkerCardDisabled: {
+    backgroundColor: '#F5F5F5',
+    opacity: 0.8,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -372,6 +357,9 @@ const styles = StyleSheet.create({
     borderRadius: 35,
     backgroundColor: COLORS.card,
   },
+  dogwalkerPhotoDisabled: {
+    opacity: 0.5,
+  },
   dogwalkerInfo: {
     flex: 1,
     marginLeft: 12,
@@ -380,6 +368,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.textPrimary,
+  },
+  textDisabled: {
+    color: COLORS.textSecondary,
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -410,6 +401,10 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     color: COLORS.textSecondary,
+  },
+  statusTextUnavailable: {
+    color: '#FF5722',
+    fontWeight: '500',
   },
   checkmark: {
     marginLeft: 8,
