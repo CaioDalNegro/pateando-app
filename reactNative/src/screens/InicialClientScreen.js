@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,23 +9,19 @@ import {
   TouchableOpacity,
   LayoutAnimation,
   UIManager,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 import { COLORS } from "../theme/colors";
 import CardInfo from "../components/CardInfo";
 import NavButton from "../components/NavButton";
+import api from "../services/api";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-// Dados de exemplo para um passeio
-const petPasseandoAtualmente = {
-  name: "Bolinha",
-  imageUri: "https://i.pinimg.com/736x/a7/d7/7b/a7d77b1923945a2a2b9758b09f5b6b1b.jpg",
-  walkInfo: { distance: "0.8", time: "25" },
-};
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -36,49 +32,124 @@ const getGreeting = () => {
 
 export default function InicialClientScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
+  const [currentWalk, setCurrentWalk] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Estado para controlar o passeio atual.
-  // Começa como 'null' para mostrar o aviso.
-  // const [currentWalk, setCurrentWalk] = useState(null);
+  // Função para buscar passeio em andamento
+  const fetchCurrentWalk = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      // Buscar agendamentos do cliente
+      const response = await api.get(`/agendamentos/cliente/${user.id}`);
+      const agendamentos = response.data;
+      
+      // Procurar por passeio EM_ANDAMENTO
+      const emAndamento = agendamentos.find(a => a.status === 'EM_ANDAMENTO');
+      
+      if (emAndamento) {
+        setCurrentWalk({
+          id: emAndamento.id,
+          name: emAndamento.pet?.nome || 'Pet',
+          imageUri: emAndamento.pet?.fotoUrl || "https://via.placeholder.com/100/FF7A2D/FFFFFF?text=Pet",
+          walkInfo: { 
+            distance: "0.0", 
+            time: emAndamento.duracao?.toString() || "30" 
+          },
+          dogwalkerName: emAndamento.dogwalker?.usuario?.nome || 'Dogwalker',
+        });
+      } else {
+        setCurrentWalk(null);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar passeio atual:', error);
+      setCurrentWalk(null);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [user?.id]);
 
-  // --- PARA TESTAR A TELA COM UM PASSEIO EM ANDAMENTO ---
-  // Descomente a linha abaixo (e comente a linha de cima)
-   const [currentWalk, setCurrentWalk] = useState(petPasseandoAtualmente);
-  // ----------------------------------------------------
+  // Carregar ao montar
+  useEffect(() => {
+    fetchCurrentWalk();
+  }, [fetchCurrentWalk]);
+
+  // Função de refresh
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    fetchCurrentWalk();
+  }, [fetchCurrentWalk]);
+
+  // Função para refresh manual (botão)
+  const handleManualRefresh = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsRefreshing(true);
+    fetchCurrentWalk();
+  };
 
   useEffect(() => {
-    // Anima a troca entre o card de passeio e o aviso
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   }, [currentWalk]); 
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Carregando...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollViewContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.clientName}>{user?.nome || "Cliente"}!</Text>
           </View>
-          <TouchableOpacity onPress={logout}>
-            <Ionicons name="log-out-outline" size={28} color={COLORS.primary} />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            {/* ✅ Botão de Refresh */}
+            <TouchableOpacity onPress={handleManualRefresh} style={styles.headerButton}>
+              <Ionicons 
+                name={isRefreshing ? "sync" : "refresh-outline"} 
+                size={26} 
+                color={COLORS.primary} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={logout} style={styles.headerButton}>
+              <Ionicons name="log-out-outline" size={26} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Lógica Condicional: Mostra o card de passeio OU o aviso */}
         {currentWalk ? (
-          // SE TIVER UM PASSEIO
           <>
-            <TouchableOpacity onPress={() => navigation.navigate('WalkTracker')}>
+            <TouchableOpacity onPress={() => navigation.navigate('WalkTracker', { walkData: currentWalk })}>
               <CardInfo pet={currentWalk} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.ctaButton} onPress={() => navigation.navigate('WalkTracker')}>
+            <TouchableOpacity style={styles.ctaButton} onPress={() => navigation.navigate('WalkTracker', { walkData: currentWalk })}>
               <Text style={styles.ctaButtonText}>Acompanhar Passeio</Text>
               <Ionicons name="map-outline" size={24} color={COLORS.white} />
             </TouchableOpacity>
           </>
         ) : (
-          // SE NÃO TIVER PASSEIO (MOSTRA O AVISO)
           <>
             <View style={styles.noWalkCard}>
               <Ionicons name="walk-outline" size={32} color={COLORS.primary} />
@@ -105,12 +176,30 @@ export default function InicialClientScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingTop: Platform.OS === "android" ? 16 : 0,
     marginBottom: 16,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerButton: {
+    padding: 8,
   },
   scrollViewContent: { 
     paddingHorizontal: 24, 
@@ -126,7 +215,6 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginBottom: 24,
   },
-  // Estilos para o Card de Aviso
   noWalkCard: {
     backgroundColor: COLORS.white,
     borderRadius: 16,

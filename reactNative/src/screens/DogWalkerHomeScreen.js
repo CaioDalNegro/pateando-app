@@ -1,10 +1,9 @@
 import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, 
-  LayoutAnimation, UIManager, Platform, Alert, ActivityIndicator, RefreshControl,
-  StatusBar 
+  View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Switch, 
+  LayoutAnimation, UIManager, Platform, Alert, ActivityIndicator, RefreshControl
 } from 'react-native';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { Calendar, CalendarList, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '../theme/colors';
@@ -42,12 +41,14 @@ const getGreeting = () => {
   return "Boa noite,";
 };
 
+// Função para formatar data do agendamento para string de data (YYYY-MM-DD)
 const formatDateToString = (dateTimeStr) => {
   if (!dateTimeStr) return null;
   const date = new Date(dateTimeStr);
   return date.toISOString().split('T')[0];
 };
 
+// Função para formatar horário
 const formatTime = (dateTimeStr, duracao) => {
   if (!dateTimeStr) return '';
   const date = new Date(dateTimeStr);
@@ -61,32 +62,25 @@ const formatTime = (dateTimeStr, duracao) => {
   return `${startHour}:${startMin} - ${endHour}:${endMin}`;
 };
 
+// Função para calcular preço baseado na duração
 const calculatePrice = (duracao) => {
   if (duracao <= 30) return 25.00;
   if (duracao <= 60) return 40.00;
   return 55.00;
 };
 
-// Função auxiliar segura para formatar a data do título
-const formatTitleDate = (dateString) => {
-  try {
-    const [year, month, day] = dateString.split('-');
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
-  } catch (e) {
-    return dateString;
-  }
-};
-
 export default function DogWalkerHomeScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [isMonthView, setIsMonthView] = useState(false);
   const [availabilityStatus, setAvailabilityStatus] = useState('available');
   
+  // Estados para dados da API
   const [allAppointments, setAllAppointments] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Buscar agendamentos do dogwalker
   const fetchAppointments = useCallback(async () => {
     if (!user?.id) return;
     
@@ -94,6 +88,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
       const response = await api.get(`/agendamentos/dogwalker/usuario/${user.id}`);
       const agendamentos = response.data;
       
+      // Organizar agendamentos por data
       const appointmentsByDate = {};
       agendamentos.forEach(ag => {
         const dateStr = formatDateToString(ag.dataHora);
@@ -103,6 +98,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
           appointmentsByDate[dateStr] = [];
         }
         
+        // Mapear status do backend para o formato do frontend
         let frontendStatus = 'scheduled';
         if (ag.status === 'EM_ANDAMENTO') frontendStatus = 'active';
         else if (ag.status === 'CONCLUIDO') frontendStatus = 'completed';
@@ -125,6 +121,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
       
       setAllAppointments(appointmentsByDate);
     } catch (error) {
+      // Silenciar erros - dogwalker pode não estar cadastrado ainda
       console.log('Aguardando cadastro de dogwalker ou sem agendamentos:', error.response?.status);
       setAllAppointments({});
     } finally {
@@ -141,6 +138,13 @@ export default function DogWalkerHomeScreen({ navigation }) {
     setIsRefreshing(true);
     fetchAppointments();
   }, [fetchAppointments]);
+
+  // ✅ Função para refresh manual (botão)
+  const handleManualRefresh = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsRefreshing(true);
+    fetchAppointments();
+  };
 
   const appointmentsForDay = useMemo(() => {
     const appointments = allAppointments[selectedDate] || [];
@@ -175,17 +179,22 @@ export default function DogWalkerHomeScreen({ navigation }) {
 
   const handleStatusChange = async (status) => {
     triggerHaptic();
+    const previousStatus = availabilityStatus;
     setAvailabilityStatus(status);
     
+    // Atualizar disponibilidade no backend (silenciosamente, sem spam de erros)
     try {
       await api.put(`/dogwalkers/usuario/${user.id}/disponibilidade`, {
         disponibilidade: status === 'available' ? 'DISPONIVEL' : 'INDISPONIVEL'
       });
     } catch (error) {
-      console.log('Não foi possível atualizar disponibilidade');
+      // Se falhar, reverter o estado visual (mas não mostrar erro repetido)
+      console.log('Não foi possível atualizar disponibilidade - dogwalker pode não estar cadastrado ainda');
+      // Não reverter - deixar o usuário com a UI que ele escolheu
     }
   };
 
+  // Aceitar agendamento pendente
   const handleAcceptAppointment = async (appointmentId) => {
     try {
       await api.put(`/agendamentos/${appointmentId}/aceitar`, {
@@ -199,6 +208,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
     }
   };
 
+  // Rejeitar agendamento pendente
   const handleRejectAppointment = async (appointmentId) => {
     Alert.alert(
       'Confirmar',
@@ -225,6 +235,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
     );
   };
 
+  // Iniciar passeio
   const handleStartWalk = async (appointmentId) => {
     try {
       await api.put(`/agendamentos/${appointmentId}/iniciar`, {
@@ -238,6 +249,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
     }
   };
 
+  // Navega para a tela de finalização de passeio
   const handleFinishWalk = (appointment) => {
     const mockWalkData = {
       appointmentId: appointment.id,
@@ -249,26 +261,21 @@ export default function DogWalkerHomeScreen({ navigation }) {
     navigation.navigate('FinishWalk', { walkData: mockWalkData });
   };
 
+  // Marcar datas com agendamentos no calendário
   const markedDates = useMemo(() => {
     const marks = {};
     Object.keys(allAppointments).forEach(date => {
-      if (allAppointments[date].length > 0) {
-        marks[date] = { marked: true, dotColor: COLORS.primary };
-      }
+      marks[date] = { marked: true, dotColor: COLORS.primary };
     });
-    marks[selectedDate] = { 
-      ...marks[selectedDate], 
-      selected: true, 
-      selectedColor: COLORS.primary 
-    };
+    marks[selectedDate] = { ...marks[selectedDate], selected: true, selectedColor: COLORS.primary };
     return marks;
   }, [selectedDate, allAppointments]);
 
-  const calendarProps = { 
-    current: selectedDate, 
-    onDayPress: handleDayPress, 
-    markedDates, 
-    theme: calendarTheme 
+  const calendarProps = {
+    theme: calendarTheme,
+    markedDates,
+    onDayPress: handleDayPress,
+    hideExtraDays: true,
   };
 
   if (isLoading) {
@@ -295,7 +302,19 @@ export default function DogWalkerHomeScreen({ navigation }) {
                 <Text style={styles.welcomeTitle}>{getGreeting()}</Text>
                 <Text style={styles.welcomeName}>{user?.nome || 'Dogwalker'}</Text>
               </View>
-              <TouchableOpacity onPress={logout}><Ionicons name="log-out-outline" size={28} color={COLORS.primary} /></TouchableOpacity>
+              {/* ✅ Botões do header com Refresh */}
+              <View style={styles.headerButtons}>
+                <TouchableOpacity onPress={handleManualRefresh} style={styles.headerButton}>
+                  <Ionicons 
+                    name={isRefreshing ? "sync" : "refresh-outline"} 
+                    size={26} 
+                    color={COLORS.primary} 
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={logout} style={styles.headerButton}>
+                  <Ionicons name="log-out-outline" size={26} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.summaryContainer}>
@@ -314,15 +333,20 @@ export default function DogWalkerHomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.calendarWrapper}>
-              {/* Calendário único com Swipe ativado */}
-              <Calendar 
-                {...calendarProps} 
-                enableSwipeMonths={true} 
-              />
+            <View style={styles.calendarHeader}>
+              <Text style={styles.monthText}>{new Date(selectedDate.replace(/-/g, '/')).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</Text>
+              <View style={styles.switchContainer}>
+                <TouchableOpacity onPress={() => { triggerHaptic(); setSelectedDate(getTodayDate()); }} style={styles.todayButton}><Text style={styles.todayButtonText}>Hoje</Text></TouchableOpacity>
+                <Text style={styles.switchLabel}>Mês</Text>
+                <Switch onValueChange={() => { triggerHaptic(); setIsMonthView(!isMonthView); }} value={isMonthView} />
+              </View>
             </View>
 
-            <Text style={styles.agendaTitle}>Agendamentos de {formatTitleDate(selectedDate)}</Text>
+            <View style={styles.calendarWrapper}>
+              {isMonthView ? <Calendar {...calendarProps} /> : <CalendarList horizontal pagingEnabled calendarHeight={80} renderHeader={() => <View />} {...calendarProps} />}
+            </View>
+
+            <Text style={styles.agendaTitle}>Agendamentos de {new Date(selectedDate.replace(/-/g, '/')).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</Text>
           </>
         }
         data={appointmentsForDay}
@@ -331,6 +355,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
             <View style={styles.agendaItemWrapper}>
                 <AgendaItem appointment={item} isNext={item.id === nextAppointmentId} />
                 
+                {/* Botões de ação baseado no status */}
                 {item.status === 'pending' && (
                   <View style={styles.actionButtonsRow}>
                     <TouchableOpacity 
@@ -381,6 +406,7 @@ export default function DogWalkerHomeScreen({ navigation }) {
   );
 }
 
+
 const calendarTheme = { 
     calendarBackground: COLORS.background,
     selectedDayBackgroundColor: COLORS.primary,
@@ -395,22 +421,27 @@ const calendarTheme = {
     textMonthFontWeight: 'bold',
     textDayHeaderFontWeight: 'bold',
     textDayFontSize: 14,
-    textMonthFontSize: 18, 
+    textMonthFontSize: 16,
 };
 
 const styles = StyleSheet.create({ 
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: COLORS.background 
-  },
+  safeArea: { flex: 1, backgroundColor: COLORS.background },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
     paddingHorizontal: 24,
-    // Correção para barra de status no Android
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 0,
+    paddingTop: Platform.OS === 'android' ? 16 : 0,
     marginBottom: 16,
+  },
+  // ✅ Novos estilos para botões do header
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerButton: {
+    padding: 8,
   },
   welcomeTitle: { fontSize: 20, color: COLORS.textSecondary },
   welcomeName: { fontSize: 28, fontWeight: 'bold', color: COLORS.primary },
@@ -449,6 +480,28 @@ const styles = StyleSheet.create({
   },
   statusButtonText: { color: COLORS.textPrimary, fontWeight: '600' },
   statusTextActive: { fontWeight: 'bold' },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  monthText: { fontSize: 18, fontWeight: 'bold', color: COLORS.textPrimary },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  todayButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  todayButtonText: { color: COLORS.white, fontWeight: 'bold' },
+  switchLabel: { fontSize: 14, color: COLORS.textSecondary },
   calendarWrapper: { marginHorizontal: 24, marginBottom: 20 },
   agendaTitle: { 
     fontSize: 22, 
