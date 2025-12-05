@@ -1,33 +1,42 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient'; // 1. Importar o LinearGradient
-import { COLORS } from '../theme/colors'; // Assumindo que você tem o arquivo de cores
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS } from '../theme/colors';
 
-// Dados de exemplo para um pet - substitua pelos dados reais da sua API
 const defaultPet = {
   name: 'Rex',
   imageUri: 'https://i.pinimg.com/736x/a7/d7/7b/a7d77b1923945a2a2b9758b09f5b6b1b.jpg',
   walkInfo: {
     distance: '1.2',
     time: '30',
-  }
+  },
+  petsCount: 1,
 };
 
-// 2. O componente agora aceita um 'pet' como propriedade
 export default function CardInfo({ pet = defaultPet }) {
+  const petsCount = pet.petsCount || 1;
+
   return (
-    // 3. Usamos o LinearGradient como o container do card
     <LinearGradient
-      colors={[COLORS.primary, '#E56A20']} // Gradiente da cor primária para um tom mais escuro
+      colors={[COLORS.primary, '#E56A20']}
       style={styles.card}
     >
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: pet.imageUri }}
-          style={styles.petImage}
-        />
-        <Text style={styles.petName}>{pet.name}</Text>
+        <View style={styles.imageWrapper}>
+          <Image
+            source={{ uri: pet.imageUri }}
+            style={styles.petImage}
+          />
+          {/* ✅ Badge para múltiplos pets */}
+          {petsCount > 1 && (
+            <View style={styles.petCountBadge}>
+              <Ionicons name="paw" size={12} color={COLORS.white} />
+              <Text style={styles.petCountText}>{petsCount}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.petName} numberOfLines={2}>{pet.name}</Text>
       </View>
 
       <View style={styles.infoContainer}>
@@ -61,11 +70,10 @@ const spacing = {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20, // Cantos mais arredondados
+    borderRadius: 20,
     padding: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    // Sombras suaves
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -73,27 +81,51 @@ const styles = StyleSheet.create({
     elevation: 8,
     ...Platform.select({
       web: {
-        boxShadow: `0px 8px 24px ${COLORS.primary}4D`, // Cor primária com 30% de opacidade
+        boxShadow: `0px 8px 24px ${COLORS.primary}4D`,
       }
     }),
   },
   imageContainer: {
     alignItems: 'center',
     marginRight: spacing.lg,
+    maxWidth: 100,
+  },
+  imageWrapper: {
+    position: 'relative',
   },
   petImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
     marginBottom: spacing.sm,
-    borderWidth: 3, // Borda para destacar a imagem
+    borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  petCountBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: -8,
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  petCountText: {
+    color: COLORS.white,
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   petName: {
     color: COLORS.white,
     fontSize: 14,
     fontWeight: '600',
     opacity: 0.9,
+    textAlign: 'center',
   },
   infoContainer: {
     flex: 1,
@@ -108,7 +140,7 @@ const styles = StyleSheet.create({
   },
   infoTextContainer: {
     flexDirection: 'row',
-    alignItems: 'baseline', // Alinha a base do número e da unidade
+    alignItems: 'baseline',
     marginTop: spacing.sm,
   },
   infoValue: {

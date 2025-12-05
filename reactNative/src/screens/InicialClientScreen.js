@@ -141,15 +141,32 @@ export default function InicialClientScreen({ navigation }) {
       const emAndamento = agendamentos.find(a => a.status === 'EM_ANDAMENTO');
       
       if (emAndamento) {
+        // ✅ Suporte a múltiplos pets
+        const getPetNames = () => {
+          if (emAndamento.pets && emAndamento.pets.length > 0) {
+            return emAndamento.pets.map(p => p.nome).join(', ');
+          }
+          return emAndamento.pet?.nome || 'Pet';
+        };
+
+        const getPetsCount = () => {
+          if (emAndamento.pets && emAndamento.pets.length > 0) {
+            return emAndamento.pets.length;
+          }
+          return 1;
+        };
+
         setCurrentWalk({
           id: emAndamento.id,
-          name: emAndamento.pet?.nome || 'Pet',
-          imageUri: emAndamento.pet?.fotoUrl || "https://via.placeholder.com/100/FF7A2D/FFFFFF?text=Pet",
+          name: getPetNames(),
+          petsCount: getPetsCount(),
+          imageUri: emAndamento.pets?.[0]?.fotoUrl || emAndamento.pet?.fotoUrl || "https://via.placeholder.com/100/FF7A2D/FFFFFF?text=Pet",
           walkInfo: { 
             distance: "0.0", 
             time: emAndamento.duracao?.toString() || "30" 
           },
           dogwalkerName: emAndamento.dogwalker?.usuario?.nome || 'Dogwalker',
+          dogwalkerPhone: emAndamento.dogwalker?.usuario?.telefone || null,
         });
       } else {
         setCurrentWalk(null);

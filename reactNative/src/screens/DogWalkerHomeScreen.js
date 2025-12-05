@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Switch, 
-  LayoutAnimation, UIManager, Platform, Alert, ActivityIndicator, RefreshControl
+  LayoutAnimation, UIManager, Platform, Alert, ActivityIndicator, RefreshControl, Linking
 } from 'react-native';
 import { Calendar, CalendarList, LocaleConfig } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
@@ -106,16 +106,34 @@ export default function DogWalkerHomeScreen({ navigation }) {
         else if (ag.status === 'ACEITO') frontendStatus = 'scheduled';
         else if (ag.status === 'REJEITADO' || ag.status === 'CANCELADO') frontendStatus = 'cancelled';
         
+        // ✅ Suporte a múltiplos pets
+        const getPetNames = () => {
+          if (ag.pets && ag.pets.length > 0) {
+            return ag.pets.map(p => p.nome).join(', ');
+          }
+          return ag.pet?.nome || 'Pet';
+        };
+
+        const getPetsCount = () => {
+          if (ag.pets && ag.pets.length > 0) {
+            return ag.pets.length;
+          }
+          return 1;
+        };
+
         appointmentsByDate[dateStr].push({
           id: ag.id.toString(),
-          petName: ag.pet?.nome || 'Pet',
+          petName: getPetNames(),
+          petsCount: getPetsCount(),
           clientName: ag.cliente?.nome || 'Cliente',
+          clientPhone: ag.cliente?.telefone || null,
           time: formatTime(ag.dataHora, ag.duracao),
           price: calculatePrice(ag.duracao),
           status: frontendStatus,
           backendStatus: ag.status,
           duracao: ag.duracao,
           observacoes: ag.observacoes,
+          emergenciaAtiva: ag.emergenciaAtiva || false,
         });
       });
       
@@ -261,6 +279,37 @@ export default function DogWalkerHomeScreen({ navigation }) {
     navigation.navigate('FinishWalk', { walkData: mockWalkData });
   };
 
+  // ✅ Confirmar emergência e encerrar passeio
+  const handleConfirmEmergency = async (appointmentId) => {
+    Alert.alert(
+      '🚨 Confirmar Emergência',
+      'Ao confirmar, o passeio será encerrado imediatamente. Volte com o pet para o cliente o mais rápido possível.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar e Encerrar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.put(`/agendamentos/${appointmentId}/emergencia/confirmar`, {
+                dogwalkerUsuarioId: user.id
+              });
+              Alert.alert(
+                'Passeio Encerrado',
+                'O passeio foi encerrado devido à solicitação de emergência do cliente.',
+                [{ text: 'OK' }]
+              );
+              fetchAppointments();
+            } catch (error) {
+              console.error('Erro ao confirmar emergência:', error);
+              Alert.alert('Erro', error.response?.data || 'Não foi possível confirmar a emergência.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Marcar datas com agendamentos no calendário
   const markedDates = useMemo(() => {
     const marks = {};
@@ -386,10 +435,56 @@ export default function DogWalkerHomeScreen({ navigation }) {
                 )}
                 
                 {item.status === 'active' && (
+                  <View>
+                    {/* ✅ Alerta de Emergência */}
+                    {item.emergenciaAtiva && (
+                      <TouchableOpacity 
+                        style={styles.emergencyAlert}
+                        onPress={() => handleConfirmEmergency(item.id)}
+                      >
+                        <View style={styles.emergencyAlertContent}>
+                          <Ionicons name="alert-circle" size={24} color="#D32F2F" />
+                          <View style={styles.emergencyTextContainer}>
+                            <Text style={styles.emergencyTitle}>🚨 PARADA DE EMERGÊNCIA</Text>
+                            <Text style={styles.emergencySubtitle}>O cliente solicitou que você pare o passeio imediatamente!</Text>
+                          </View>
+                        </View>
+                        <View style={styles.emergencyButton}>
+                          <Text style={styles.emergencyButtonText}>Confirmar e Encerrar</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Botões de comunicação */}
+                    <View style={styles.communicationButtons}>
+                      <TouchableOpacity 
+                        style={styles.commButton}
+                        onPress={() => navigation.navigate('Chat', {
+                          agendamentoId: item.id,
+                          clientName: item.clientName,
+                          petNames: item.petName,
+                          clientPhone: item.clientPhone,
+                        })}
+                      >
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color={COLORS.primary} />
+                        <Text style={styles.commButtonText}>Chat</Text>
+                      </TouchableOpacity>
+                      {item.clientPhone && (
+                        <TouchableOpacity 
+                          style={styles.commButton}
+                          onPress={() => Linking.openURL(`tel:${item.clientPhone}`)}
+                        >
+                          <Ionicons name="call-outline" size={20} color="#4CAF50" />
+                          <Text style={styles.commButtonText}>Ligar</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
                     <TouchableOpacity style={styles.finishButton} onPress={() => handleFinishWalk(item)}>
                         <Text style={styles.finishButtonText}>Finalizar Passeio</Text>
                         <Ionicons name="checkmark-circle-outline" size={20} color={COLORS.white} />
                     </TouchableOpacity>
+                  </View>
                 )}
             </View>
         )}
@@ -601,5 +696,68 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // ✅ Estilos de Emergência
+  emergencyAlert: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#F44336',
+  },
+  emergencyAlertContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  emergencyTextContainer: {
+    flex: 1,
+  },
+  emergencyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#D32F2F',
+    marginBottom: 4,
+  },
+  emergencySubtitle: {
+    fontSize: 14,
+    color: '#D32F2F',
+    lineHeight: 20,
+  },
+  emergencyButton: {
+    backgroundColor: '#D32F2F',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  emergencyButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // ✅ Estilos de Comunicação
+  communicationButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
+  commButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.card,
+  },
+  commButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
   },
 });

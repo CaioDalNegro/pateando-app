@@ -255,6 +255,48 @@ public class AgendamentoService {
     }
 
     /**
+     * Cliente solicita parada de emergência
+     */
+    public Agendamento solicitarEmergencia(Long agendamentoId, Long clienteId) {
+        Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new RuntimeException("Agendamento não encontrado!"));
+
+        if (!agendamento.getCliente().getId().equals(clienteId)) {
+            throw new RuntimeException("Você não tem permissão para solicitar emergência neste agendamento!");
+        }
+
+        if (!"EM_ANDAMENTO".equalsIgnoreCase(agendamento.getStatus())) {
+            throw new RuntimeException("Só é possível solicitar emergência em passeios em andamento!");
+        }
+
+        agendamento.setEmergenciaAtiva(true);
+        return agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * Dogwalker confirma recebimento da emergência e finaliza o passeio
+     */
+    public Agendamento confirmarEmergencia(Long agendamentoId, Long dogwalkerUsuarioId) {
+        Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
+                .orElseThrow(() -> new RuntimeException("Agendamento não encontrado!"));
+
+        if (!agendamento.getDogwalker().getUsuario().getId().equals(dogwalkerUsuarioId)) {
+            throw new RuntimeException("Você não tem permissão para confirmar esta emergência!");
+        }
+
+        // Desativar emergência e finalizar passeio
+        agendamento.setEmergenciaAtiva(false);
+        agendamento.setStatus("CONCLUIDO");
+        
+        // Voltar disponibilidade do dogwalker
+        Dogwalker dogwalker = agendamento.getDogwalker();
+        dogwalker.setDisponibilidade("DISPONIVEL");
+        dogwalkerRepository.save(dogwalker);
+
+        return agendamentoRepository.save(agendamento);
+    }
+
+    /**
      * Deleta um agendamento (admin)
      */
     public void deletarAgendamento(Long id) {

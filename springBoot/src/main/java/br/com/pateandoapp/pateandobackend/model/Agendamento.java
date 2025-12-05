@@ -69,6 +69,12 @@ public class Agendamento {
     @Column(nullable = false)
     private String status = "PENDENTE";
 
+    /**
+     * Flag para indicar se o cliente solicitou parada de emergência
+     */
+    @Column(nullable = false)
+    private boolean emergenciaAtiva = false;
+
     // ✅ Método auxiliar para compatibilidade - retorna o primeiro pet
     public Pet getPet() {
         return pets != null && !pets.isEmpty() ? pets.get(0) : null;

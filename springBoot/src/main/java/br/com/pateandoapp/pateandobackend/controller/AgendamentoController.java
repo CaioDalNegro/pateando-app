@@ -227,6 +227,38 @@ public class AgendamentoController {
     }
 
     /**
+     * PUT /agendamentos/{id}/emergencia
+     * Cliente solicita parada de emergência
+     * Body: { clienteId }
+     */
+    @PutMapping("/{id}/emergencia")
+    public ResponseEntity<?> solicitarEmergencia(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+        try {
+            Long clienteId = body.get("clienteId");
+            Agendamento agendamento = agendamentoService.solicitarEmergencia(id, clienteId);
+            return ResponseEntity.ok(agendamento);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * PUT /agendamentos/{id}/emergencia/confirmar
+     * Dogwalker confirma recebimento da emergência
+     * Body: { dogwalkerUsuarioId }
+     */
+    @PutMapping("/{id}/emergencia/confirmar")
+    public ResponseEntity<?> confirmarEmergencia(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+        try {
+            Long dogwalkerUsuarioId = body.get("dogwalkerUsuarioId");
+            Agendamento agendamento = agendamentoService.confirmarEmergencia(id, dogwalkerUsuarioId);
+            return ResponseEntity.ok(agendamento);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
      * DELETE /agendamentos/{id}
      * Deleta um agendamento
      */
