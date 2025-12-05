@@ -30,14 +30,106 @@ const getGreeting = () => {
   return "Boa noite,";
 };
 
+// Componente de Card para Agendamento Pendente
+const PendingAppointmentCard = ({ appointment }) => {
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case 'PENDENTE':
+        return { text: 'Aguardando confirmação', color: '#FFA726', icon: 'time-outline' };
+      case 'ACEITO':
+        return { text: 'Confirmado', color: '#4CAF50', icon: 'checkmark-circle-outline' };
+      default:
+        return { text: status, color: COLORS.textSecondary, icon: 'help-outline' };
+    }
+  };
+
+  // ✅ Suporte a múltiplos pets
+  const getPetNames = () => {
+    if (appointment.pets && appointment.pets.length > 0) {
+      return appointment.pets.map(p => p.nome).join(', ');
+    }
+    return appointment.pet?.nome || 'Pet';
+  };
+
+  const getPetsCount = () => {
+    if (appointment.pets && appointment.pets.length > 0) {
+      return appointment.pets.length;
+    }
+    return 1;
+  };
+
+  const statusInfo = getStatusInfo(appointment.status);
+  const petsCount = getPetsCount();
+
+  return (
+    <View style={styles.appointmentCard}>
+      <View style={styles.appointmentHeader}>
+        <View style={styles.appointmentPetInfo}>
+          <View style={styles.petIconContainer}>
+            <Ionicons name="paw" size={20} color={COLORS.primary} />
+            {petsCount > 1 && (
+              <View style={styles.petCountBadge}>
+                <Text style={styles.petCountText}>{petsCount}</Text>
+              </View>
+            )}
+          </View>
+          <View>
+            <Text style={styles.appointmentPetName}>{getPetNames()}</Text>
+            <Text style={styles.appointmentDogwalker}>
+              com {appointment.dogwalker?.usuario?.nome || 'Dogwalker'}
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: statusInfo.color + '20' }]}>
+          <Ionicons name={statusInfo.icon} size={14} color={statusInfo.color} />
+          <Text style={[styles.statusText, { color: statusInfo.color }]}>{statusInfo.text}</Text>
+        </View>
+      </View>
+
+      <View style={styles.appointmentDetails}>
+        <View style={styles.detailItem}>
+          <Ionicons name="calendar-outline" size={16} color={COLORS.textSecondary} />
+          <Text style={styles.detailText}>{formatDate(appointment.dataHora)}</Text>
+        </View>
+        <View style={styles.detailItem}>
+          <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} />
+          <Text style={styles.detailText}>{formatTime(appointment.dataHora)}</Text>
+        </View>
+        <View style={styles.detailItem}>
+          <Ionicons name="hourglass-outline" size={16} color={COLORS.textSecondary} />
+          <Text style={styles.detailText}>{appointment.duracao} min</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export default function InicialClientScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
   const [currentWalk, setCurrentWalk] = useState(null);
+  const [pendingAppointments, setPendingAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Função para buscar passeio em andamento
-  const fetchCurrentWalk = useCallback(async () => {
+  // Função para buscar dados
+  const fetchData = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -62,9 +154,21 @@ export default function InicialClientScreen({ navigation }) {
       } else {
         setCurrentWalk(null);
       }
+
+      // Filtrar agendamentos PENDENTES e ACEITOS (não concluídos, não cancelados, não em andamento)
+      const pending = agendamentos.filter(a => 
+        a.status === 'PENDENTE' || a.status === 'ACEITO'
+      );
+      
+      // Ordenar por data mais próxima
+      pending.sort((a, b) => new Date(a.dataHora) - new Date(b.dataHora));
+      
+      setPendingAppointments(pending);
+
     } catch (error) {
-      console.error('Erro ao buscar passeio atual:', error);
+      console.error('Erro ao buscar dados:', error);
       setCurrentWalk(null);
+      setPendingAppointments([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -73,20 +177,20 @@ export default function InicialClientScreen({ navigation }) {
 
   // Carregar ao montar
   useEffect(() => {
-    fetchCurrentWalk();
-  }, [fetchCurrentWalk]);
+    fetchData();
+  }, [fetchData]);
 
   // Função de refresh
   const onRefresh = useCallback(() => {
     setIsRefreshing(true);
-    fetchCurrentWalk();
-  }, [fetchCurrentWalk]);
+    fetchData();
+  }, [fetchData]);
 
   // Função para refresh manual (botão)
   const handleManualRefresh = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsRefreshing(true);
-    fetchCurrentWalk();
+    fetchData();
   };
 
   useEffect(() => {
@@ -123,7 +227,6 @@ export default function InicialClientScreen({ navigation }) {
             <Text style={styles.clientName}>{user?.nome || "Cliente"}!</Text>
           </View>
           <View style={styles.headerButtons}>
-            {/* ✅ Botão de Refresh */}
             <TouchableOpacity onPress={handleManualRefresh} style={styles.headerButton}>
               <Ionicons 
                 name={isRefreshing ? "sync" : "refresh-outline"} 
@@ -169,6 +272,34 @@ export default function InicialClientScreen({ navigation }) {
           <NavButton icon="calendar-outline" text="Agenda" onPress={() => navigation.navigate('Agenda')} />
           <NavButton icon="person-outline" text="Perfil" onPress={() => navigation.navigate('Profile')} />
         </View>
+
+        {/* ✅ Seção de Agendamentos Pendentes */}
+        {pendingAppointments.length > 0 && (
+          <View style={styles.pendingSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Agendamentos Pendentes</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('History')}>
+                <Text style={styles.seeAllText}>Ver todos</Text>
+              </TouchableOpacity>
+            </View>
+
+            {pendingAppointments.map((appointment) => (
+              <PendingAppointmentCard 
+                key={appointment.id} 
+                appointment={appointment} 
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Se não tiver agendamentos pendentes */}
+        {pendingAppointments.length === 0 && !currentWalk && (
+          <View style={styles.noPendingCard}>
+            <Ionicons name="calendar-outline" size={24} color={COLORS.textSecondary} />
+            <Text style={styles.noPendingText}>Nenhum agendamento pendente</Text>
+          </View>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -265,5 +396,126 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginTop: 24,
     gap: 16,
+  },
+  // ✅ Estilos para seção de agendamentos pendentes
+  pendingSection: {
+    marginTop: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  // Card de agendamento
+  appointmentCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  appointmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  appointmentPetInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  petIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 122, 45, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  petCountBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  petCountText: {
+    color: COLORS.white,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  appointmentPetName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+  },
+  appointmentDogwalker: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  appointmentDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.background,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  // Card quando não tem pendentes
+  noPendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 24,
+    gap: 8,
+  },
+  noPendingText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
 });

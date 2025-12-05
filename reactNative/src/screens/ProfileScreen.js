@@ -16,12 +16,17 @@ import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 
 // Componente para cada item do menu
-const ProfileMenuItem = ({ icon, text, onPress }) => (
+const ProfileMenuItem = ({ icon, text, onPress, badge }) => (
   <TouchableOpacity style={styles.menuItem} onPress={onPress}>
     <View style={styles.menuIconContainer}>
       <Ionicons name={icon} size={22} color={COLORS.primary} />
     </View>
     <Text style={styles.menuItemText}>{text}</Text>
+    {badge && (
+      <View style={styles.badge}>
+        <Text style={styles.badgeText}>{badge}</Text>
+      </View>
+    )}
     <Ionicons
       name="chevron-forward-outline"
       size={22}
@@ -39,40 +44,47 @@ export default function ProfileScreen({ navigation }) {
     horasFormatadas: "0h",
     dogwalkerFavorito: "Nenhum",
   });
+  const [pendingCount, setPendingCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Função para buscar estatísticas
-  const fetchEstatisticas = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!user?.id) return;
     
     try {
-      const response = await api.get(`/usuarios/${user.id}/estatisticas`);
-      setEstatisticas(response.data);
+      // Buscar estatísticas
+      const statsResponse = await api.get(`/usuarios/${user.id}/estatisticas`);
+      setEstatisticas(statsResponse.data);
+
+      // Buscar agendamentos para contar pendentes
+      const appointmentsResponse = await api.get(`/agendamentos/cliente/${user.id}`);
+      const pending = appointmentsResponse.data.filter(a => 
+        a.status === 'PENDENTE' || a.status === 'ACEITO'
+      );
+      setPendingCount(pending.length);
+
     } catch (error) {
-      console.log("Erro ao buscar estatísticas:", error);
-      // Manter valores padrão em caso de erro
+      console.log("Erro ao buscar dados:", error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   }, [user?.id]);
 
-  // Buscar estatísticas ao montar o componente
+  // Buscar ao montar o componente
   useEffect(() => {
-    fetchEstatisticas();
-  }, [fetchEstatisticas]);
+    fetchData();
+  }, [fetchData]);
 
   // Função para refresh
   const onRefresh = useCallback(() => {
     setIsRefreshing(true);
-    fetchEstatisticas();
-  }, [fetchEstatisticas]);
+    fetchData();
+  }, [fetchData]);
 
-  // Formatar data de criação do usuário (se disponível)
+  // Formatar data de criação do usuário
   const formatMemberSince = () => {
-    // Se tiver a data de criação no user, usar ela
-    // Por enquanto, usar data atual como placeholder
     const meses = [
       "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
@@ -145,6 +157,13 @@ export default function ProfileScreen({ navigation }) {
             icon="paw-outline"
             text="Meus Pets"
             onPress={() => navigation.navigate("MyPets")}
+          />
+          {/* ✅ Novo botão de Histórico */}
+          <ProfileMenuItem
+            icon="time-outline"
+            text="Histórico de Passeios"
+            onPress={() => navigation.navigate("History")}
+            badge={pendingCount > 0 ? pendingCount.toString() : null}
           />
           <ProfileMenuItem
             icon="card-outline"
@@ -250,6 +269,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textPrimary,
     fontWeight: "500",
+  },
+  // ✅ Badge para notificação
+  badge: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 8,
+  },
+  badgeText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   logoutButton: {
     marginTop: 32,

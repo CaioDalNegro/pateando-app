@@ -1,5 +1,6 @@
 package br.com.pateandoapp.pateandobackend.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,9 +32,17 @@ public class AgendamentoService {
     private DogwalkerRepository dogwalkerRepository;
 
     /**
-     * Cria um novo agendamento
+     * ✅ ATUALIZADO: Cria um novo agendamento com múltiplos pets (até 3)
      */
-    public Agendamento criarAgendamento(Long clienteId, Long petId, Long dogwalkerId, Agendamento agendamentoData) {
+    public Agendamento criarAgendamento(Long clienteId, List<Long> petIds, Long dogwalkerId, Agendamento agendamentoData) {
+        // Validar quantidade de pets
+        if (petIds == null || petIds.isEmpty()) {
+            throw new RuntimeException("Selecione pelo menos um pet!");
+        }
+        if (petIds.size() > 3) {
+            throw new RuntimeException("Máximo de 3 pets por passeio!");
+        }
+
         // Buscar o cliente
         Usuario cliente = usuarioRepository.findById(clienteId)
                 .orElseThrow(() -> new RuntimeException("Cliente não encontrado!"));
@@ -43,13 +52,18 @@ public class AgendamentoService {
             throw new RuntimeException("Usuário não é um cliente!");
         }
 
-        // Buscar o pet
-        Pet pet = petRepository.findById(petId)
-                .orElseThrow(() -> new RuntimeException("Pet não encontrado!"));
+        // Buscar e validar todos os pets
+        List<Pet> pets = new ArrayList<>();
+        for (Long petId : petIds) {
+            Pet pet = petRepository.findById(petId)
+                    .orElseThrow(() -> new RuntimeException("Pet com ID " + petId + " não encontrado!"));
 
-        // Verificar se o pet pertence ao cliente
-        if (!pet.getDono().getId().equals(clienteId)) {
-            throw new RuntimeException("Este pet não pertence ao cliente!");
+            // Verificar se o pet pertence ao cliente
+            if (!pet.getDono().getId().equals(clienteId)) {
+                throw new RuntimeException("O pet " + pet.getNome() + " não pertence ao cliente!");
+            }
+
+            pets.add(pet);
         }
 
         // Buscar o dogwalker
@@ -59,7 +73,7 @@ public class AgendamentoService {
         // Montar o agendamento
         Agendamento agendamento = new Agendamento();
         agendamento.setCliente(cliente);
-        agendamento.setPet(pet);
+        agendamento.setPets(pets);
         agendamento.setDogwalker(dogwalker);
         agendamento.setDataHora(agendamentoData.getDataHora());
         agendamento.setDuracao(agendamentoData.getDuracao());
@@ -68,6 +82,15 @@ public class AgendamentoService {
         agendamento.setStatus("PENDENTE");
 
         return agendamentoRepository.save(agendamento);
+    }
+
+    /**
+     * ✅ Método de compatibilidade para criar com um único pet
+     */
+    public Agendamento criarAgendamento(Long clienteId, Long petId, Long dogwalkerId, Agendamento agendamentoData) {
+        List<Long> petIds = new ArrayList<>();
+        petIds.add(petId);
+        return criarAgendamento(clienteId, petIds, dogwalkerId, agendamentoData);
     }
 
     /**
@@ -108,7 +131,6 @@ public class AgendamentoService {
     public List<Agendamento> listarPorDogwalkerUsuarioId(Long usuarioId) {
         Optional<Dogwalker> dogwalkerOpt = dogwalkerRepository.findByUsuarioId(usuarioId);
         if (dogwalkerOpt.isEmpty()) {
-            // Retornar lista vazia se o dogwalker não existe ainda
             return List.of();
         }
         return agendamentoRepository.findByDogwalker(dogwalkerOpt.get());
@@ -128,12 +150,10 @@ public class AgendamentoService {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
                 .orElseThrow(() -> new RuntimeException("Agendamento não encontrado!"));
 
-        // Verificar se o dogwalker é o correto
         if (!agendamento.getDogwalker().getUsuario().getId().equals(dogwalkerUsuarioId)) {
             throw new RuntimeException("Você não tem permissão para aceitar este agendamento!");
         }
 
-        // Verificar se está pendente
         if (!"PENDENTE".equalsIgnoreCase(agendamento.getStatus())) {
             throw new RuntimeException("Este agendamento não está mais pendente!");
         }
@@ -149,12 +169,10 @@ public class AgendamentoService {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
                 .orElseThrow(() -> new RuntimeException("Agendamento não encontrado!"));
 
-        // Verificar se o dogwalker é o correto
         if (!agendamento.getDogwalker().getUsuario().getId().equals(dogwalkerUsuarioId)) {
             throw new RuntimeException("Você não tem permissão para rejeitar este agendamento!");
         }
 
-        // Verificar se está pendente
         if (!"PENDENTE".equalsIgnoreCase(agendamento.getStatus())) {
             throw new RuntimeException("Este agendamento não está mais pendente!");
         }
@@ -164,8 +182,7 @@ public class AgendamentoService {
     }
 
     /**
-     * Inicia um passeio (muda status para EM_ANDAMENTO)
-     * ✅ ATUALIZADO: Muda disponibilidade do dogwalker para OCUPADO
+     * Inicia um passeio (muda status para EM_ANDAMENTO e dogwalker fica OCUPADO)
      */
     public Agendamento iniciarPasseio(Long agendamentoId, Long dogwalkerUsuarioId) {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
@@ -179,7 +196,7 @@ public class AgendamentoService {
             throw new RuntimeException("Este agendamento precisa estar aceito para iniciar!");
         }
 
-        // ✅ NOVO: Mudar disponibilidade do dogwalker para OCUPADO
+        // Atualizar disponibilidade do dogwalker para OCUPADO
         Dogwalker dogwalker = agendamento.getDogwalker();
         dogwalker.setDisponibilidade("OCUPADO");
         dogwalkerRepository.save(dogwalker);
@@ -189,8 +206,7 @@ public class AgendamentoService {
     }
 
     /**
-     * Finaliza um passeio
-     * ✅ ATUALIZADO: Incrementa totalPasseios e muda disponibilidade para DISPONIVEL
+     * Finaliza um passeio (incrementa contador e volta disponibilidade)
      */
     public Agendamento finalizarPasseio(Long agendamentoId, Long dogwalkerUsuarioId) {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
@@ -204,22 +220,16 @@ public class AgendamentoService {
             throw new RuntimeException("Este passeio não está em andamento!");
         }
 
-        // ✅ Atualizar dogwalker: incrementar passeios e voltar disponibilidade
+        // Incrementar contador de passeios do dogwalker
         Dogwalker dogwalker = agendamento.getDogwalker();
-        
-        // Incrementar contador de passeios
         Integer totalAtual = dogwalker.getTotalPasseios();
-        if (totalAtual == null) {
-            totalAtual = 0;
-        }
+        if (totalAtual == null) totalAtual = 0;
         dogwalker.setTotalPasseios(totalAtual + 1);
         
         // Voltar disponibilidade para DISPONIVEL
         dogwalker.setDisponibilidade("DISPONIVEL");
-        
         dogwalkerRepository.save(dogwalker);
 
-        // Finalizar o agendamento
         agendamento.setStatus("CONCLUIDO");
         return agendamentoRepository.save(agendamento);
     }
@@ -231,12 +241,10 @@ public class AgendamentoService {
         Agendamento agendamento = agendamentoRepository.findById(agendamentoId)
                 .orElseThrow(() -> new RuntimeException("Agendamento não encontrado!"));
 
-        // Verificar se é o cliente correto
         if (!agendamento.getCliente().getId().equals(clienteId)) {
             throw new RuntimeException("Você não tem permissão para cancelar este agendamento!");
         }
 
-        // Só pode cancelar se ainda não iniciou
         if ("EM_ANDAMENTO".equalsIgnoreCase(agendamento.getStatus()) || 
             "CONCLUIDO".equalsIgnoreCase(agendamento.getStatus())) {
             throw new RuntimeException("Não é possível cancelar um passeio em andamento ou concluído!");

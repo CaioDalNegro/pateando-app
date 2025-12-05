@@ -61,20 +61,6 @@ export default function LoginScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Entre aqui</Text>
-
-        <View style={styles.radioContainer}>
-          <RadioButton
-            label="Sou Cliente"
-            selected={selectedRole === "cliente"}
-            onPress={() => setSelectedRole("cliente")}
-          />
-          <RadioButton
-            label="Sou DogWalker"
-            selected={selectedRole === "dogwalker"}
-            onPress={() => setSelectedRole("dogwalker")}
-          />
-        </View>
-
         <InputField
           iconName="mail-outline"
           placeholder="Email"

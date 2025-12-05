@@ -6,9 +6,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Classe que representa o agendamento de uma caminhada entre Cliente, Pet e Dogwalker.
+ * Classe que representa o agendamento de uma caminhada entre Cliente, Pets e Dogwalker.
+ * Suporta múltiplos pets (até 3) por passeio.
  */
 @Data
 @AllArgsConstructor
@@ -26,10 +29,14 @@ public class Agendamento {
     @JoinColumn(name = "cliente_id", nullable = false)
     private Usuario cliente;
 
-    // Pet que será passeado
-    @ManyToOne
-    @JoinColumn(name = "pet_id", nullable = false)
-    private Pet pet;
+    // ✅ MUDANÇA: Lista de Pets que serão passeados (até 3)
+    @ManyToMany
+    @JoinTable(
+        name = "agendamento_pets",
+        joinColumns = @JoinColumn(name = "agendamento_id"),
+        inverseJoinColumns = @JoinColumn(name = "pet_id")
+    )
+    private List<Pet> pets = new ArrayList<>();
 
     // Dogwalker responsável
     @ManyToOne
@@ -55,8 +62,25 @@ public class Agendamento {
      * PENDENTE → cliente solicitou, aguardando Dogwalker aceitar
      * ACEITO   → Dogwalker aceitou, vai para agenda
      * REJEITADO→ Dogwalker recusou
+     * EM_ANDAMENTO → Passeio em andamento
      * CONCLUIDO→ Passeio finalizado
+     * CANCELADO → Cliente cancelou
      */
     @Column(nullable = false)
     private String status = "PENDENTE";
+
+    // ✅ Método auxiliar para compatibilidade - retorna o primeiro pet
+    public Pet getPet() {
+        return pets != null && !pets.isEmpty() ? pets.get(0) : null;
+    }
+
+    // ✅ Método auxiliar para adicionar pet
+    public void addPet(Pet pet) {
+        if (pets == null) {
+            pets = new ArrayList<>();
+        }
+        if (pets.size() < 3) {
+            pets.add(pet);
+        }
+    }
 }

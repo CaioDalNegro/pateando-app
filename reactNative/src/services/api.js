@@ -10,7 +10,7 @@ const api = axios.create({
     - Use localhost para rodar no PC.
     - Use o IP da maquina para rodar no mobile.
   */
-  baseURL: "http://10.110.12.13:8080",
+  baseURL: "http://10.110.12.6:8080",
 });
 
 

@@ -1,5 +1,6 @@
 package br.com.pateandoapp.pateandobackend.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -20,15 +21,37 @@ public class AgendamentoController {
 
     /**
      * POST /agendamentos/criar
-     * Cria um novo agendamento
-     * Body: { clienteId, petId, dogwalkerId, dataHora, duracao, rota?, observacoes? }
+     * ✅ ATUALIZADO: Aceita múltiplos pets
+     * Body: { clienteId, petIds: [1,2,3], dogwalkerId, dataHora, duracao, rota?, observacoes? }
+     * Também aceita formato antigo: { clienteId, petId, dogwalkerId, ... }
      */
     @PostMapping("/criar")
     public ResponseEntity<?> criarAgendamento(@RequestBody Map<String, Object> dados) {
         try {
             Long clienteId = Long.valueOf(dados.get("clienteId").toString());
-            Long petId = Long.valueOf(dados.get("petId").toString());
             Long dogwalkerId = Long.valueOf(dados.get("dogwalkerId").toString());
+
+            // ✅ Suporte para múltiplos pets (petIds) ou único pet (petId)
+            List<Long> petIds = new ArrayList<>();
+            
+            if (dados.get("petIds") != null) {
+                // Novo formato: array de IDs
+                @SuppressWarnings("unchecked")
+                List<?> rawPetIds = (List<?>) dados.get("petIds");
+                for (Object id : rawPetIds) {
+                    petIds.add(Long.valueOf(id.toString()));
+                }
+            } else if (dados.get("petId") != null) {
+                // Formato antigo: único ID (compatibilidade)
+                petIds.add(Long.valueOf(dados.get("petId").toString()));
+            } else {
+                return ResponseEntity.badRequest().body("É necessário informar petId ou petIds!");
+            }
+
+            // Validar máximo de 3 pets
+            if (petIds.size() > 3) {
+                return ResponseEntity.badRequest().body("Máximo de 3 pets por passeio!");
+            }
 
             Agendamento agendamentoData = new Agendamento();
             
@@ -45,7 +68,7 @@ public class AgendamentoController {
                 agendamentoData.setObservacoes(dados.get("observacoes").toString());
             }
 
-            Agendamento salvo = agendamentoService.criarAgendamento(clienteId, petId, dogwalkerId, agendamentoData);
+            Agendamento salvo = agendamentoService.criarAgendamento(clienteId, petIds, dogwalkerId, agendamentoData);
             return ResponseEntity.ok(salvo);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

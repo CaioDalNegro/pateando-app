@@ -17,7 +17,8 @@ import AgendaScreen from '../screens/AgendaScreen';
 import SelectDogWalkerScreen from '../screens/SelectDogwalkerScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
-import PaymentScreen from '../screens/PaymentScreen'; // <--- 1. IMPORTADO AQUI
+import PaymentScreen from '../screens/PaymentScreen';
+import HistoryScreen from '../screens/HistoryScreen'; // ✅ Nova tela
 
 const Stack = createStackNavigator();
 
@@ -51,9 +52,8 @@ export default function AppNavigator() {
           <Stack.Screen name="WalkTracker" component={WalkTrackerScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-          
-          {/* 2. ADICIONADO AQUI NO FLUXO DO CLIENTE 👇 */}
           <Stack.Screen name="Payment" component={PaymentScreen} />
+          <Stack.Screen name="History" component={HistoryScreen} />
         </>
       ) : user.tipoUsuario === 'DOGWALKER' ? (
         // Telas do Dog Walker (Fluxo de quem passeia)
